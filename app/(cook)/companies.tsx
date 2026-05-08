@@ -7,9 +7,10 @@ import { getApiErrorMessage } from "../../src/api/client";
 import { companiesApi } from "../../src/api/companies";
 import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
+import { GradientBackground } from "../../src/components/GradientBackground";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 import { Screen } from "../../src/components/Screen";
-import { colors, spacing, typography } from "../../src/theme";
+import { colors, radius, spacing, typography } from "../../src/theme";
 import type { Company } from "../../src/types";
 
 export default function CompaniesScreen() {
@@ -38,9 +39,15 @@ export default function CompaniesScreen() {
 
   return (
     <Screen>
-      <View style={styles.hero}>
+      <GradientBackground
+        from={colors.surfaceWarm}
+        to={colors.accentSoft}
+        direction="diagonal"
+        style={styles.hero}
+        borderRadius={radius.xl}
+      >
         <View style={styles.heroIcon}>
-          <Building2 color={colors.brandRed} size={26} strokeWidth={2.4} />
+          <Building2 color={colors.brandRed} size={28} strokeWidth={2.4} />
         </View>
         <View style={styles.heroCopy}>
           <Text style={styles.eyebrow}>Empresas</Text>
@@ -49,7 +56,7 @@ export default function CompaniesScreen() {
             Cargá dirección y coordenadas para que el delivery pueda calcular cercanía.
           </Text>
         </View>
-      </View>
+      </GradientBackground>
 
       <Button
         icon={Plus}
@@ -82,7 +89,7 @@ function CompanyCard({ company }: { company: Company }) {
     typeof company.latitude === "number" && typeof company.longitude === "number";
 
   return (
-    <Card style={styles.card}>
+    <Card style={styles.card} variant="elevated">
       <View style={styles.cardIcon}>
         <Building2 color={colors.brandRed} size={24} strokeWidth={2.4} />
       </View>
@@ -91,7 +98,7 @@ function CompanyCard({ company }: { company: Company }) {
         {!!company.address && <Text style={styles.cardMeta}>{company.address}</Text>}
         <View style={styles.locationRow}>
           <MapPin
-              color={hasLocation ? colors.success : colors.warning}
+            color={hasLocation ? colors.success : colors.warning}
             size={16}
             strokeWidth={2.4}
           />
@@ -106,7 +113,7 @@ function CompanyCard({ company }: { company: Company }) {
         accessibilityLabel={`Editar ${company.name}`}
         hitSlop={10}
         onPress={() => router.push({ pathname: "/company-form", params: { id: company.id } })}
-        style={styles.editButton}
+        style={({ pressed }) => [styles.editButton, pressed && styles.editButtonPressed]}
       >
         <Pencil color={colors.brandRed} size={20} strokeWidth={2.4} />
       </Pressable>
@@ -127,10 +134,10 @@ const styles = StyleSheet.create({
   cardIcon: {
     alignItems: "center",
     backgroundColor: colors.redSoft,
-    borderRadius: 8,
-    height: 48,
+    borderRadius: radius.md,
+    height: 52,
     justifyContent: "center",
-    width: 48,
+    width: 52,
   },
   cardMeta: {
     ...typography.body,
@@ -143,21 +150,22 @@ const styles = StyleSheet.create({
   editButton: {
     alignItems: "center",
     backgroundColor: colors.redSoft,
-    borderRadius: 8,
-    height: 42,
+    borderRadius: radius.md,
+    height: 44,
     justifyContent: "center",
-    width: 42,
+    width: 44,
+  },
+  editButtonPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.94 }],
   },
   eyebrow: {
     ...typography.captionStrong,
     color: colors.brandRed,
+    textTransform: "uppercase",
   },
   hero: {
     alignItems: "center",
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
     flexDirection: "row",
     gap: spacing.md,
     padding: spacing.lg,
@@ -167,11 +175,16 @@ const styles = StyleSheet.create({
   },
   heroIcon: {
     alignItems: "center",
-    backgroundColor: colors.yellowSoft,
-    borderRadius: 8,
-    height: 58,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    height: 64,
     justifyContent: "center",
-    width: 58,
+    shadowColor: colors.shadow,
+    shadowOffset: { height: 4, width: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    width: 64,
+    elevation: 4,
   },
   list: {
     gap: spacing.md,
@@ -188,7 +201,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.body,
-    color: colors.muted,
+    color: colors.inkSoft,
     marginTop: spacing.xs,
   },
   title: {

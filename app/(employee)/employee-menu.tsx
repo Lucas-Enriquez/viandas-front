@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { ImageOff, Link2, Minus, Plus, RefreshCw, ShoppingBag } from "lucide-react-native";
@@ -12,7 +12,7 @@ import { EmptyState, ErrorState, LoadingState } from "../../src/components/State
 import { Screen } from "../../src/components/Screen";
 import { StatusPill } from "../../src/components/StatusPill";
 import { getStoredGlobalMenuLink } from "../../src/storage";
-import { colors, spacing, typography } from "../../src/theme";
+import { colors, radius, spacing, typography } from "../../src/theme";
 import type { MenuItemResponse } from "../../src/types";
 import { formatMenuDate } from "../../src/utils/date";
 import { formatMoney } from "../../src/utils/format";
@@ -148,7 +148,7 @@ export default function EmployeeMenuScreen() {
       </View>
 
       {currentOrderQuery.isError ? (
-        <Card style={styles.notice}>
+        <Card style={styles.notice} variant="warm">
           <StatusPill label="Aviso" tone="warning" />
           <Text style={styles.noticeText}>
             No pudimos confirmar tu pedido actual. Si ya pediste, el backend lo va a
@@ -158,7 +158,7 @@ export default function EmployeeMenuScreen() {
       ) : null}
 
       {currentOrder?.hasOrder ? (
-        <Card style={styles.notice}>
+        <Card style={styles.notice} variant="warm">
           <StatusPill label="Pedido registrado" tone="success" />
           <Text style={styles.noticeText}>{currentOrder.message}</Text>
           <Button
@@ -183,7 +183,7 @@ export default function EmployeeMenuScreen() {
         ))}
       </View>
 
-      <Card style={styles.checkout}>
+      <Card style={styles.checkout} variant="elevated">
         <View>
           <Text style={styles.checkoutLabel}>Total</Text>
           <Text style={styles.checkoutTotal}>{formatMoney(selectedTotal)}</Text>
@@ -221,8 +221,23 @@ function ClosedMenuState() {
 }
 
 function HayBaleIllustration() {
+  const sway = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sway, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(sway, { toValue: 0, duration: 2400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [sway]);
+
+  const rotation = sway.interpolate({ inputRange: [0, 1], outputRange: ["-2deg", "2deg"] });
+
   return (
-    <View style={styles.hayScene}>
+    <Animated.View style={[styles.hayScene, { transform: [{ rotate: rotation }] }]}>
       <View style={styles.hayShadow} />
       <View style={styles.hayBale}>
         <View style={[styles.hayStripe, styles.hayStripeTop]} />
@@ -232,7 +247,7 @@ function HayBaleIllustration() {
       </View>
       <View style={styles.hayStemLeft} />
       <View style={styles.hayStemRight} />
-    </View>
+    </Animated.View>
   );
 }
 
@@ -253,15 +268,16 @@ function MenuItemCard({
   const meta = `${formatMoney(item.price)}${
     hasStockLimit ? ` · ${isSoldOut ? "Sin stock" : `Stock: ${item.remainingStock}`}` : ""
   }`;
+  const isSelected = quantity > 0;
 
   return (
-    <Card style={styles.itemCard}>
+    <Card style={styles.itemCard} variant={isSelected ? "warm" : "elevated"}>
       <View style={styles.itemMainRow}>
         {item.photoUrl ? (
           <Image source={{ uri: item.photoUrl }} style={styles.itemImage} />
         ) : (
           <View style={styles.itemImageFallback}>
-            <ImageOff color={colors.muted} size={20} strokeWidth={2.4} />
+            <ImageOff color={colors.muted} size={22} strokeWidth={2.4} />
           </View>
         )}
         <View style={styles.itemBody}>
@@ -288,23 +304,37 @@ function StepperButton({
   onPress: () => void;
 }) {
   const Icon = icon === "minus" ? Minus : Plus;
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = () => {
+    Animated.spring(scale, { toValue: 0.88, useNativeDriver: true, speed: 22, bounciness: 0 }).start();
+  };
+  const onPressOut = () => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 3 }).start();
+  };
+
   return (
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.stepperButton,
-        icon === "plus" ? styles.stepperButtonAdd : styles.stepperButtonSub,
-        disabled ? styles.stepperButtonDisabled : null,
-        pressed && !disabled ? styles.stepperButtonPressed : null,
-      ]}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
     >
-      <Icon
-        color={icon === "plus" ? colors.onBrand : colors.brandRed}
-        size={16}
-        strokeWidth={2.6}
-      />
+      <Animated.View
+        style={[
+          styles.stepperButton,
+          icon === "plus" ? styles.stepperButtonAdd : styles.stepperButtonSub,
+          disabled ? styles.stepperButtonDisabled : null,
+          { transform: [{ scale }] },
+        ]}
+      >
+        <Icon
+          color={icon === "plus" ? colors.onBrand : colors.brandRed}
+          size={18}
+          strokeWidth={2.6}
+        />
+      </Animated.View>
     </Pressable>
   );
 }
@@ -347,8 +377,9 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   checkoutLabel: {
-    ...typography.caption,
+    ...typography.captionStrong,
     color: colors.muted,
+    textTransform: "uppercase",
   },
   checkoutReason: {
     ...typography.caption,
@@ -356,12 +387,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   checkoutTotal: {
-    ...typography.h2,
+    ...typography.h1,
     color: colors.ink,
   },
   eyebrow: {
     ...typography.captionStrong,
     color: colors.brandRed,
+    textTransform: "uppercase",
   },
   header: {
     gap: spacing.xs,
@@ -392,11 +424,11 @@ const styles = StyleSheet.create({
     width: 176,
   },
   hayShadow: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.borderStrong,
     borderRadius: 999,
     bottom: 4,
     height: 14,
-    opacity: 0.85,
+    opacity: 0.6,
     position: "absolute",
     width: 132,
   },
@@ -454,17 +486,17 @@ const styles = StyleSheet.create({
   },
   itemImage: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 8,
-    height: 64,
-    width: 64,
+    borderRadius: radius.md,
+    height: 72,
+    width: 72,
   },
   itemImageFallback: {
     alignItems: "center",
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 8,
-    height: 64,
+    borderRadius: radius.md,
+    height: 72,
     justifyContent: "center",
-    width: 64,
+    width: 72,
   },
   itemMeta: {
     ...typography.caption,
@@ -488,7 +520,7 @@ const styles = StyleSheet.create({
   },
   noticeText: {
     ...typography.body,
-    color: colors.muted,
+    color: colors.inkSoft,
   },
   quantity: {
     ...typography.bodyStrong,
@@ -507,10 +539,10 @@ const styles = StyleSheet.create({
   },
   stepperButton: {
     alignItems: "center",
-    borderRadius: 8,
-    height: 34,
+    borderRadius: radius.md,
+    height: 36,
     justifyContent: "center",
-    width: 34,
+    width: 36,
   },
   stepperButtonAdd: {
     backgroundColor: colors.brandRed,
@@ -518,13 +550,10 @@ const styles = StyleSheet.create({
   stepperButtonDisabled: {
     opacity: 0.38,
   },
-  stepperButtonPressed: {
-    opacity: 0.78,
-  },
   stepperButtonSub: {
     backgroundColor: colors.surface,
-    borderColor: colors.redBorder,
-    borderWidth: 1,
+    borderColor: colors.brandRedLight,
+    borderWidth: 1.5,
   },
   subtitle: {
     ...typography.body,

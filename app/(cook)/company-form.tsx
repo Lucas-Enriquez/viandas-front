@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { router, useLocalSearchParams } from "expo-router";
-import { Building2, MapPin, Save } from "lucide-react-native";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Building2, MapPin, Navigation, Save } from "lucide-react-native";
 
 import { getApiErrorMessage } from "../../src/api/client";
 import { companiesApi } from "../../src/api/companies";
@@ -11,7 +11,8 @@ import { Card } from "../../src/components/Card";
 import { Input } from "../../src/components/Input";
 import { LoadingState } from "../../src/components/StateViews";
 import { Screen } from "../../src/components/Screen";
-import { colors, spacing, typography } from "../../src/theme";
+import { mapResultStore } from "../../src/stores/mapResult";
+import { colors, radius, spacing, typography } from "../../src/theme";
 import type { CompanyRequest } from "../../src/types";
 
 export default function CompanyFormScreen() {
@@ -44,6 +45,20 @@ export default function CompanyFormScreen() {
     setLatitude(companyQuery.data.latitude?.toString() ?? "");
     setLongitude(companyQuery.data.longitude?.toString() ?? "");
   }, [companyQuery.data]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const result = mapResultStore.get();
+      if (result) {
+        setLatitude(result.lat.toFixed(6));
+        setLongitude(result.lng.toFixed(6));
+        if (result.address && !address) {
+          setAddress(result.address);
+        }
+        mapResultStore.clear();
+      }
+    }, [address]),
+  );
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -111,21 +126,25 @@ export default function CompanyFormScreen() {
       <Card style={styles.section}>
         <View style={styles.sectionHeader}>
           <MapPin color={colors.brandRed} size={22} strokeWidth={2.4} />
-          <Text style={styles.sectionTitle}>Ubicación manual</Text>
+          <Text style={styles.sectionTitle}>Ubicación</Text>
         </View>
-        <Input
-          keyboardType="decimal-pad"
-          label="Latitud"
-          onChangeText={setLatitude}
-          placeholder="-34.3921711"
-          value={latitude}
-        />
-        <Input
-          keyboardType="decimal-pad"
-          label="Longitud"
-          onChangeText={setLongitude}
-          placeholder="-58.6627832"
-          value={longitude}
+        {latitude && longitude ? (
+          <View style={styles.coordsCard}>
+            <View style={styles.coordsRow}>
+              <Navigation color={colors.success} size={16} strokeWidth={2.4} />
+              <Text style={styles.coordsValue}>
+                {latitude}, {longitude}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.coordsEmpty}>Sin coordenadas guardadas.</Text>
+        )}
+        <Button
+          icon={MapPin}
+          title="Elegir en mapa"
+          variant="secondary"
+          onPress={() => router.push("/map-picker")}
         />
       </Card>
 
@@ -175,5 +194,23 @@ const styles = StyleSheet.create({
   title: {
     ...typography.h1,
     color: colors.ink,
+  },
+  coordsCard: {
+    backgroundColor: colors.successSoft,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  coordsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.xs,
+  },
+  coordsValue: {
+    ...typography.captionStrong,
+    color: colors.success,
+  },
+  coordsEmpty: {
+    ...typography.caption,
+    color: colors.muted,
   },
 });

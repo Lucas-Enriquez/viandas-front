@@ -1,9 +1,10 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from "react-native";
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, ViewStyle } from "react-native";
 import type { LucideIcon } from "lucide-react-native";
 
-import { colors, spacing, typography } from "../theme";
+import { colors, radius, shadows, spacing, typography } from "../theme";
+import { usePressAnimation } from "../hooks/usePressAnimation";
 
-type ButtonVariant = "primary" | "secondary" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "accent";
 type ButtonSize = "medium" | "small";
 
 type ButtonProps = {
@@ -28,46 +29,47 @@ export function Button({
   variant = "primary",
 }: ButtonProps) {
   const isDisabled = disabled || loading;
-  const iconColor = variant === "primary" ? colors.onBrand : colors.brandRed;
+  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation(0.96);
+
+  const iconColor =
+    variant === "primary" || variant === "accent" ? colors.onBrand : colors.brandRed;
+  const labelStyle =
+    variant === "primary" || variant === "accent" ? styles.labelOnBrand : styles.labelAlt;
+  const shadowStyle = variant === "primary" ? shadows.brand : variant === "accent" ? shadows.md : null;
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={isDisabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.base,
-        styles[variant],
-        styles[size],
-        pressed && !isDisabled ? styles.pressed : null,
-        isDisabled ? styles.disabled : null,
-        style,
-      ]}
-    >
-      {loading ? (
-        <ActivityIndicator color={iconColor} size="small" />
-      ) : Icon ? (
-        <Icon color={iconColor} size={size === "small" ? 17 : 20} strokeWidth={2.5} />
-      ) : null}
-      <Text style={[styles.label, variant === "primary" ? styles.labelPrimary : styles.labelAlt]}>
-        {title}
-      </Text>
-    </Pressable>
+    <Animated.View style={[animatedStyle, style]}>
+      <Pressable
+        accessibilityRole="button"
+        disabled={isDisabled}
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={[styles.base, styles[variant], styles[size], shadowStyle, isDisabled && styles.disabled]}
+      >
+        {loading ? (
+          <ActivityIndicator color={iconColor} size="small" />
+        ) : Icon ? (
+          <Icon color={iconColor} size={size === "small" ? 17 : 20} strokeWidth={2.5} />
+        ) : null}
+        <Text style={[styles.label, labelStyle]}>{title}</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
     alignItems: "center",
-    borderRadius: 8,
+    borderRadius: radius.md,
     flexDirection: "row",
     gap: spacing.sm,
     justifyContent: "center",
-    minHeight: 52,
+    minHeight: 54,
     paddingHorizontal: spacing.lg,
   },
   medium: {
-    minHeight: 52,
+    minHeight: 54,
   },
   small: {
     minHeight: 40,
@@ -76,9 +78,12 @@ const styles = StyleSheet.create({
   primary: {
     backgroundColor: colors.brandRed,
   },
+  accent: {
+    backgroundColor: colors.accent,
+  },
   secondary: {
     backgroundColor: colors.redSoft,
-    borderColor: colors.redBorder,
+    borderColor: colors.brandRedLight,
     borderWidth: 1,
   },
   ghost: {
@@ -86,16 +91,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderWidth: 1,
   },
-  pressed: {
-    opacity: 0.82,
-  },
   disabled: {
-    opacity: 0.58,
+    opacity: 0.55,
   },
   label: {
     ...typography.button,
   },
-  labelPrimary: {
+  labelOnBrand: {
     color: colors.onBrand,
   },
   labelAlt: {

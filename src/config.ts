@@ -11,3 +11,9 @@ const configuredApiUrl =
   envApiUrl ?? (Constants.expoConfig?.extra?.apiUrl as string | undefined);
 
 export const API_URL = (configuredApiUrl ?? "http://10.0.2.2:8080").replace(/\/$/, "");
+
+const envGoogleMapsKey =
+  typeof process !== "undefined" ? process.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY : undefined;
+
+export const GOOGLE_MAPS_KEY =
+  envGoogleMapsKey ?? (Constants.expoConfig?.extra?.googleMapsKey as string | undefined) ?? "";

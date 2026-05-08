@@ -42,8 +42,15 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION"
+        "FOREGROUND_SERVICE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "__REDACTED__"
+        }
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFF8EE"
@@ -55,7 +62,12 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiUrl": "http://10.0.2.2:8080"
-    }
+      "apiUrl": "http://10.0.2.2:8080",
+      "router": {},
+      "eas": {
+        "projectId": "af955ca6-fe3e-43c7-b5fc-8c68b2ac9b56"
+      }
+    },
+    "owner": "lucas-enriquez-dev"
   }
 }

@@ -4,7 +4,7 @@ import { CircleAlert, Inbox } from "lucide-react-native";
 
 import { Button } from "./Button";
 import { Screen } from "./Screen";
-import { colors, spacing, typography } from "../theme";
+import { colors, radius, spacing, typography } from "../theme";
 
 type StateProps = {
   actionLabel?: string;
@@ -75,11 +75,11 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     alignItems: "center",
-    backgroundColor: colors.yellowSoft,
-    borderRadius: 8,
-    height: 72,
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.lg,
+    height: 80,
     justifyContent: "center",
-    width: 72,
+    width: 80,
   },
   title: {
     ...typography.h2,

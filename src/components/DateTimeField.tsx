@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { CalendarDays, Clock } from "lucide-react-native";
 
-import { colors, spacing, typography } from "../theme";
+import { colors, radius, spacing, typography } from "../theme";
 
 type DateTimeFieldProps = {
   label: string;
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-end",
     backgroundColor: colors.brandRed,
-    borderRadius: 8,
+    borderRadius: radius.md,
     minHeight: 42,
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
@@ -97,24 +97,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: "row",
     gap: spacing.sm,
-    minHeight: 52,
+    minHeight: 56,
     paddingHorizontal: spacing.md,
   },
   iosPickerWrap: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.sm,
     padding: spacing.md,
   },
   label: {
     ...typography.captionStrong,
-    color: colors.ink,
+    color: colors.inkSoft,
+    textTransform: "uppercase",
   },
   pressed: {
     opacity: 0.82,

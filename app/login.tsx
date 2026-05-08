@@ -17,9 +17,10 @@ import { getApiErrorMessage } from "../src/api/client";
 import { useAuth } from "../src/auth/AuthContext";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { Button } from "../src/components/Button";
+import { GradientBackground } from "../src/components/GradientBackground";
 import { Input } from "../src/components/Input";
 import { API_URL } from "../src/config";
-import { colors, spacing, typography } from "../src/theme";
+import { colors, radius, spacing, typography } from "../src/theme";
 import type { AuthSession } from "../src/types";
 
 function homeForSession(session: AuthSession) {
@@ -81,76 +82,83 @@ export default function LoginScreen() {
       keyboardVerticalOffset={Platform.select({ ios: 8, android: 0 })}
       style={styles.root}
     >
-      <ScrollView
-        contentContainerStyle={styles.screen}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
+      <GradientBackground
+        from={colors.surfaceWarm}
+        to={colors.background}
+        direction="vertical"
+        style={styles.gradient}
       >
-        <View style={[styles.header, isKeyboardVisible && styles.headerKeyboard]}>
-          <BrandLogo size={isKeyboardVisible ? "compact" : "large"} />
-          {!isKeyboardVisible && (
-            <>
-              <Text style={styles.title}>App de reparto</Text>
-              <Text style={styles.subtitle}>
-                Entrá con tu cuenta para gestionar menús, pedidos y repartos.
-              </Text>
-            </>
-          )}
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.screen}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={[styles.header, isKeyboardVisible && styles.headerKeyboard]}>
+            <BrandLogo size={isKeyboardVisible ? "compact" : "large"} />
+            {!isKeyboardVisible && (
+              <>
+                <Text style={styles.title}>App de reparto</Text>
+                <Text style={styles.subtitle}>
+                  Entrá con tu cuenta para gestionar menús, pedidos y repartos.
+                </Text>
+              </>
+            )}
+          </View>
 
-        <View style={styles.form}>
-          <Input
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            label="Email"
-            onChangeText={setEmail}
-            placeholder="cook@caseritas.com"
-            returnKeyType="next"
-            textContentType="emailAddress"
-            value={email}
-          />
-          <Input
-            label="Contraseña"
-            onChangeText={setPassword}
-            placeholder="Tu contraseña"
-            rightAccessory={
-              <Pressable
-                accessibilityLabel={
-                  isPasswordVisible ? "Ocultar contraseña" : "Mostrar contraseña"
-                }
-                hitSlop={10}
-                onPress={() => setIsPasswordVisible((current) => !current)}
-                style={styles.eyeButton}
-              >
-                {isPasswordVisible ? (
-                  <EyeOff color={colors.muted} size={21} strokeWidth={2.4} />
-                ) : (
-                  <Eye color={colors.muted} size={21} strokeWidth={2.4} />
-                )}
-              </Pressable>
-            }
-            returnKeyType="done"
-            secureTextEntry={!isPasswordVisible}
-            textContentType="password"
-            value={password}
-          />
-          <Button
-            icon={LogIn}
-            loading={isSubmitting}
-            onPress={handleLogin}
-            title="Ingresar"
-          />
-          <Button
-            icon={UserPlus}
-            onPress={() => router.push("/invitation")}
-            title="Aceptar invitación"
-            variant="ghost"
-          />
-        </View>
+          <View style={styles.form}>
+            <Input
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              label="Email"
+              onChangeText={setEmail}
+              placeholder="cook@caseritas.com"
+              returnKeyType="next"
+              textContentType="emailAddress"
+              value={email}
+            />
+            <Input
+              label="Contraseña"
+              onChangeText={setPassword}
+              placeholder="Tu contraseña"
+              rightAccessory={
+                <Pressable
+                  accessibilityLabel={
+                    isPasswordVisible ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
+                  hitSlop={10}
+                  onPress={() => setIsPasswordVisible((current) => !current)}
+                  style={styles.eyeButton}
+                >
+                  {isPasswordVisible ? (
+                    <EyeOff color={colors.muted} size={21} strokeWidth={2.4} />
+                  ) : (
+                    <Eye color={colors.muted} size={21} strokeWidth={2.4} />
+                  )}
+                </Pressable>
+              }
+              returnKeyType="done"
+              secureTextEntry={!isPasswordVisible}
+              textContentType="password"
+              value={password}
+            />
+            <Button
+              icon={LogIn}
+              loading={isSubmitting}
+              onPress={handleLogin}
+              title="Ingresar"
+            />
+            <Button
+              icon={UserPlus}
+              onPress={() => router.push("/invitation")}
+              title="Aceptar invitación"
+              variant="ghost"
+            />
+          </View>
 
-        <Text style={styles.apiUrl}>Backend: {API_URL}</Text>
-      </ScrollView>
+          <Text style={styles.apiUrl}>Backend: {API_URL}</Text>
+        </ScrollView>
+      </GradientBackground>
     </KeyboardAvoidingView>
   );
 }
@@ -162,7 +170,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   form: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     gap: spacing.md,
+    padding: spacing.lg,
+    shadowColor: colors.shadow,
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 6,
   },
   header: {
     alignItems: "center",
@@ -177,6 +193,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 40,
   },
+  gradient: {
+    flex: 1,
+  },
   root: {
     backgroundColor: colors.background,
     flex: 1,
@@ -187,11 +206,11 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xl,
   },
   subtitle: {
     ...typography.body,
-    color: colors.muted,
+    color: colors.inkSoft,
     maxWidth: 340,
     textAlign: "center",
   },

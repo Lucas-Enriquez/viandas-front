@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Image, StyleSheet, Text } from "react-native";
 
 import { colors, spacing, typography } from "../theme";
 
@@ -10,9 +11,18 @@ type BrandLogoProps = {
 
 export function BrandLogo({ size = "compact" }: BrandLogoProps) {
   const isLarge = size === "large";
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.92)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 8, bounciness: 6 }),
+    ]).start();
+  }, [opacity, scale]);
 
   return (
-    <View style={styles.wrapper}>
+    <Animated.View style={[styles.wrapper, { opacity, transform: [{ scale }] }]}>
       <Image
         accessibilityLabel="Logo Caseritas"
         resizeMode="contain"
@@ -20,7 +30,7 @@ export function BrandLogo({ size = "compact" }: BrandLogoProps) {
         style={isLarge ? styles.logoLarge : styles.logoCompact}
       />
       {!isLarge && <Text style={styles.brandText}>Caseritas</Text>}
-    </View>
+    </Animated.View>
   );
 }
 

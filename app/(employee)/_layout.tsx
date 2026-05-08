@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
-import { ClipboardCheck, Link2, LogOut, UserRound, Utensils } from "lucide-react-native";
+import { ClipboardCheck, LogOut, UserRound, Utensils } from "lucide-react-native";
 
 import { useAuth } from "../../src/auth/AuthContext";
 import { LoadingState } from "../../src/components/StateViews";
@@ -29,29 +29,35 @@ export default function EmployeeLayout() {
             accessibilityLabel="Cerrar sesión"
             hitSlop={10}
             onPress={signOut}
-            style={styles.logout}
+            style={({ pressed }) => [styles.logout, pressed && styles.logoutPressed]}
           >
             <LogOut color={colors.muted} size={20} strokeWidth={2.4} />
           </Pressable>
         ),
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: colors.surface },
+        headerStyle: { backgroundColor: colors.background },
         headerTitle: () => <Text style={styles.brand}>Caseritas</Text>,
+        sceneStyle: { backgroundColor: colors.background },
         tabBarActiveTintColor: colors.brandRed,
         tabBarInactiveTintColor: colors.muted,
+        tabBarLabelStyle: {
+          ...typography.captionStrong,
+          textTransform: "uppercase",
+        },
         tabBarStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: colors.background,
           borderTopColor: colors.border,
-          minHeight: 78,
-          paddingBottom: 20,
-          paddingTop: 8,
+          borderTopWidth: 1,
+          minHeight: 80,
+          paddingBottom: 22,
+          paddingTop: 10,
         },
       }}
     >
       <Tabs.Screen
         name="employee-menu"
         options={{
-          tabBarIcon: ({ color }) => <Utensils color={color} size={22} />,
+          tabBarIcon: ({ color }) => <Utensils color={color} size={22} strokeWidth={2.4} />,
           title: "Menú",
         }}
       />
@@ -75,7 +81,7 @@ export default function EmployeeLayout() {
             </Pressable>
           ),
           tabBarIcon: () => (
-            <ClipboardCheck color={colors.onBrand} size={26} strokeWidth={2.6} />
+            <ClipboardCheck color={colors.onBrand} size={28} strokeWidth={2.6} />
           ),
           tabBarLabel: () => null,
           title: "Mi pedido",
@@ -84,7 +90,7 @@ export default function EmployeeLayout() {
       <Tabs.Screen
         name="account"
         options={{
-          tabBarIcon: ({ color }) => <UserRound color={color} size={22} />,
+          tabBarIcon: ({ color }) => <UserRound color={color} size={22} strokeWidth={2.4} />,
           title: "Cuenta",
         }}
       />
@@ -100,38 +106,46 @@ const styles = StyleSheet.create({
   },
   logout: {
     alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 999,
     height: 40,
     justifyContent: "center",
-    marginRight: spacing.xs,
+    marginRight: spacing.md,
     width: 40,
+  },
+  logoutPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.94 }],
   },
   centerTabButton: {
     alignItems: "center",
     flex: 1,
     justifyContent: "center",
-    marginTop: -18,
+    marginTop: -22,
   },
   centerTabButtonPressed: {
     opacity: 0.86,
+    transform: [{ scale: 0.94 }],
   },
   centerTabCircle: {
     alignItems: "center",
     backgroundColor: colors.brandRed,
-    borderColor: colors.surface,
+    borderColor: colors.background,
     borderRadius: 999,
     borderWidth: 4,
-    height: 62,
+    elevation: 8,
+    height: 66,
     justifyContent: "center",
-    shadowColor: colors.shadow,
-    shadowOffset: { height: 6, width: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    width: 62,
-    elevation: 6,
+    shadowColor: colors.brandRed,
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    width: 66,
   },
   centerTabLabel: {
     ...typography.captionStrong,
     color: colors.brandRed,
-    marginTop: 2,
+    marginTop: 4,
+    textTransform: "uppercase",
   },
 });
