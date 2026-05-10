@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { ImageOff, Link2, Minus, Plus, RefreshCw, ShoppingBag } from "lucide-react-native";
@@ -8,9 +8,11 @@ import { employeeApi } from "../../src/api/employee";
 import { getApiErrorMessage } from "../../src/api/client";
 import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
-import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
-import { Screen } from "../../src/components/Screen";
+import { Hero } from "../../src/components/Hero";
+import { Skeleton } from "../../src/components/Skeleton";
+import { EmptyState, ErrorState } from "../../src/components/StateViews";
 import { StatusPill } from "../../src/components/StatusPill";
+import { useToast } from "../../src/providers/ToastProvider";
 import { getStoredGlobalMenuLink } from "../../src/storage";
 import { colors, radius, spacing, typography } from "../../src/theme";
 import type { MenuItemResponse } from "../../src/types";
@@ -23,6 +25,7 @@ export default function EmployeeMenuScreen() {
   const [link, setLink] = useState<{ date: string; token: string } | null>(null);
   const [draft, setDraft] = useState<ItemDraft>({});
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   useEffect(() => {
     getStoredGlobalMenuLink().then(setLink);
@@ -63,12 +66,20 @@ export default function EmployeeMenuScreen() {
       return employeeApi.createGlobalOrder(link.date, link.token, { items });
     },
     onError: (error) => {
-      Alert.alert("No pudimos crear el pedido", getApiErrorMessage(error));
+      toast.show({
+        title: "No pudimos crear el pedido",
+        message: getApiErrorMessage(error),
+        tone: "error",
+      });
     },
     onSuccess: () => {
       setDraft({});
       queryClient.invalidateQueries({ queryKey: ["employee", "current-order"] });
-      Alert.alert("Pedido creado", "Tu pedido quedó registrado.");
+      toast.show({
+        title: "Pedido creado",
+        message: "Tu pedido quedó registrado.",
+        tone: "success",
+      });
       router.replace("/employee-order");
     },
   });
@@ -96,10 +107,6 @@ export default function EmployeeMenuScreen() {
     );
   }
 
-  if (menuQuery.isLoading || currentOrderQuery.isLoading) {
-    return <LoadingState label="Cargando menú..." />;
-  }
-
   if (menuQuery.isError) {
     return (
       <ErrorState
@@ -124,81 +131,121 @@ export default function EmployeeMenuScreen() {
       : !hasSelection
         ? "Elegí al menos un plato"
         : null;
-
-  if (menu && !menu.canOrder && !hasCurrentOrder) {
-    return (
-      <Screen>
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>{menu.companyName ?? "Menú global"}</Text>
-          <Text style={styles.title}>{formatMenuDate(menu.date)}</Text>
-          <Text style={styles.subtitle}>Cerró {menu.orderClosesAt}</Text>
-        </View>
-
-        <ClosedMenuState />
-      </Screen>
-    );
-  }
+  const isLoading = menuQuery.isLoading || currentOrderQuery.isLoading;
+  const heroEyebrow = menu?.companyName ?? "Menú global";
+  const heroTitle = menu ? formatMenuDate(menu.date) : "Cargando…";
+  const heroSubtitle = menu
+    ? menu.canOrder
+      ? `Cierra ${menu.orderClosesAt}`
+      : `Cerró ${menu.orderClosesAt}`
+    : "";
 
   return (
-    <Screen>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>{menu?.companyName ?? "Menú global"}</Text>
-        <Text style={styles.title}>{menu ? formatMenuDate(menu.date) : "Menú"}</Text>
-        <Text style={styles.subtitle}>Cierra {menu?.orderClosesAt}</Text>
-      </View>
+    <View style={styles.root}>
+      <Hero eyebrow={heroEyebrow} title={heroTitle} subtitle={heroSubtitle}>
+        {menu && (
+          <View style={styles.statsRow}>
+            <StatChip label={String(menu.items.length)} caption="items" />
+            <StatChip
+              label={hasCurrentOrder ? "✓" : menu.canOrder ? "Abierto" : "Cerrado"}
+              caption={hasCurrentOrder ? "tu pedido" : "estado"}
+            />
+          </View>
+        )}
+      </Hero>
 
-      {currentOrderQuery.isError ? (
-        <Card style={styles.notice} variant="warm">
-          <StatusPill label="Aviso" tone="warning" />
-          <Text style={styles.noticeText}>
-            No pudimos confirmar tu pedido actual. Si ya pediste, el backend lo va a
-            validar al enviar.
-          </Text>
-        </Card>
-      ) : null}
-
-      {currentOrder?.hasOrder ? (
-        <Card style={styles.notice} variant="warm">
-          <StatusPill label="Pedido registrado" tone="success" />
-          <Text style={styles.noticeText}>{currentOrder.message}</Text>
-          <Button
-            onPress={() => router.push("/employee-order")}
-            size="small"
-            title="Ver mi pedido"
-            variant="secondary"
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            colors={[colors.brandRed]}
+            onRefresh={() => {
+              menuQuery.refetch();
+              currentOrderQuery.refetch();
+            }}
+            refreshing={menuQuery.isFetching && !menuQuery.isLoading}
+            tintColor={colors.brandRed}
           />
-        </Card>
-      ) : null}
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {isLoading ? (
+          <View style={styles.skeletonGroup}>
+            <Skeleton.Card height={120} />
+            <Skeleton.Card height={120} />
+            <Skeleton.Card height={120} />
+          </View>
+        ) : menu && !menu.canOrder && !hasCurrentOrder ? (
+          <ClosedMenuState />
+        ) : (
+          <>
+            {currentOrderQuery.isError ? (
+              <Card style={styles.notice} variant="warm">
+                <StatusPill label="Aviso" tone="warning" />
+                <Text style={styles.noticeText}>
+                  No pudimos confirmar tu pedido actual. Si ya pediste, el backend lo va a
+                  validar al enviar.
+                </Text>
+              </Card>
+            ) : null}
 
-      <View style={styles.list}>
-        {menu?.items.map((item) => (
-          <MenuItemCard
-            item={item}
-            key={item.id}
-            onChange={(quantity) =>
-              setDraft((current) => ({ ...current, [item.id]: clampQuantity(item, quantity) }))
-            }
-            quantity={clampQuantity(item, draft[item.id] ?? 0)}
-          />
-        ))}
-      </View>
+            {currentOrder?.hasOrder ? (
+              <Card style={styles.notice} variant="warm">
+                <StatusPill label="Pedido registrado" tone="success" />
+                <Text style={styles.noticeText}>{currentOrder.message}</Text>
+                <Button
+                  onPress={() => router.push("/employee-order")}
+                  size="small"
+                  title="Ver mi pedido"
+                  variant="secondary"
+                />
+              </Card>
+            ) : null}
 
-      <Card style={styles.checkout} variant="elevated">
-        <View>
-          <Text style={styles.checkoutLabel}>Total</Text>
-          <Text style={styles.checkoutTotal}>{formatMoney(selectedTotal)}</Text>
-          {!!disabledReason && <Text style={styles.checkoutReason}>{disabledReason}</Text>}
-        </View>
-        <Button
-          disabled={!!disabledReason}
-          icon={ShoppingBag}
-          loading={createOrderMutation.isPending}
-          onPress={() => createOrderMutation.mutate()}
-          style={styles.checkoutButton}
-          title="Pedir"
-        />
-      </Card>
-    </Screen>
+            <View style={styles.list}>
+              {menu?.items.map((item) => (
+                <MenuItemCard
+                  item={item}
+                  key={item.id}
+                  onChange={(quantity) =>
+                    setDraft((current) => ({
+                      ...current,
+                      [item.id]: clampQuantity(item, quantity),
+                    }))
+                  }
+                  quantity={clampQuantity(item, draft[item.id] ?? 0)}
+                />
+              ))}
+            </View>
+
+            <Card style={styles.checkout} variant="elevated">
+              <View>
+                <Text style={styles.checkoutLabel}>Total</Text>
+                <Text style={styles.checkoutTotal}>{formatMoney(selectedTotal)}</Text>
+                {!!disabledReason && <Text style={styles.checkoutReason}>{disabledReason}</Text>}
+              </View>
+              <Button
+                disabled={!!disabledReason}
+                icon={ShoppingBag}
+                loading={createOrderMutation.isPending}
+                onPress={() => createOrderMutation.mutate()}
+                style={styles.checkoutButton}
+                title="Pedir"
+              />
+            </Card>
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+function StatChip({ label, caption }: { label: string; caption: string }) {
+  return (
+    <View style={styles.statChip}>
+      <Text style={styles.statValue}>{label}</Text>
+      <Text style={styles.statCaption}>{caption}</Text>
+    </View>
   );
 }
 
@@ -350,6 +397,41 @@ function clampQuantity(item: MenuItemResponse, quantity: number) {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
+  scrollContent: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+  },
+  skeletonGroup: {
+    gap: spacing.md,
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  statChip: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: radius.lg,
+    flex: 1,
+    gap: 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  statValue: {
+    color: colors.onBrand,
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  statCaption: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
+    fontWeight: "600",
+  },
   closedMessage: {
     ...typography.body,
     color: colors.muted,
@@ -389,14 +471,6 @@ const styles = StyleSheet.create({
   checkoutTotal: {
     ...typography.h1,
     color: colors.ink,
-  },
-  eyebrow: {
-    ...typography.captionStrong,
-    color: colors.brandRed,
-    textTransform: "uppercase",
-  },
-  header: {
-    gap: spacing.xs,
   },
   hayBale: {
     alignItems: "center",
@@ -554,13 +628,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderColor: colors.brandRedLight,
     borderWidth: 1.5,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.muted,
-  },
-  title: {
-    ...typography.h1,
-    color: colors.ink,
   },
 });

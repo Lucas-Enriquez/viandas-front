@@ -28,6 +28,11 @@ type AddMenuItemBody = {
   remainingStock?: number;
 };
 
+type CloneMenuBody = {
+  date: string;
+  orderClosesAt?: string;
+};
+
 export const menusApi = {
   list(filters: MenuFilters = {}) {
     const params = new URLSearchParams();
@@ -64,5 +69,16 @@ export const menusApi = {
 
   shareMessage(menuId: string) {
     return apiFetch<ShareMessageResponse>(`/menus/${menuId}/share-message`);
+  },
+
+  get(menuId: string) {
+    return apiFetch<MenuResponse>(`/menus/${menuId}`);
+  },
+
+  clone(menuId: string, body: CloneMenuBody) {
+    return apiFetch<MenuResponse>(`/menus/${menuId}/clone`, {
+      body: JSON.stringify(body),
+      method: "POST",
+    });
   },
 };

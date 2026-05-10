@@ -1,6 +1,5 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
-import { Building2, Link2, LogOut, Mail, UserRound } from "lucide-react-native";
+import { LogOut, Mail, ShieldCheck, UserRound } from "lucide-react-native";
 
 import { useAuth } from "../../src/auth/AuthContext";
 import { Button } from "../../src/components/Button";
@@ -8,11 +7,10 @@ import { Card } from "../../src/components/Card";
 import { Hero } from "../../src/components/Hero";
 import { colors, radius, spacing, typography } from "../../src/theme";
 
-export default function AccountScreen() {
+export default function CuentaScreen() {
   const { session, signOut } = useAuth();
-  const company = session?.context?.company;
 
-  const initials = (session?.user.name ?? "Empleado")
+  const initials = (session?.user.name ?? "Cocina")
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -28,8 +26,8 @@ export default function AccountScreen() {
             <Text style={styles.avatarText}>{initials || "?"}</Text>
           </View>
         }
-        subtitle={company?.name ?? "Sin empresa asignada"}
-        title={session?.user.name ?? "Empleado"}
+        subtitle={session?.user.email ?? ""}
+        title={session?.user.name ?? "Cocina"}
         tone="ink"
       />
 
@@ -38,24 +36,29 @@ export default function AccountScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Card style={styles.card}>
-          <InfoRow icon={UserRound} label="Rol" value={session?.user.role ?? "—"} />
-          <InfoRow icon={Mail} label="Email" value={session?.user.email ?? "—"} />
-          <InfoRow icon={Building2} label="Empresa" value={company?.name ?? "—"} />
+          <InfoRow
+            icon={UserRound}
+            label="Rol"
+            value={session?.user.role ?? "—"}
+          />
+          <InfoRow
+            icon={Mail}
+            label="Email"
+            value={session?.user.email ?? "—"}
+          />
+          <InfoRow
+            icon={ShieldCheck}
+            label="ID"
+            value={session?.user.id?.slice(0, 8) ?? "—"}
+          />
         </Card>
 
         <Button
-          icon={Link2}
-          onPress={() => router.push("/global-token")}
-          title="Abrir menú global"
+          icon={LogOut}
+          onPress={signOut}
+          title="Cerrar sesión"
           variant="secondary"
         />
-        <Button
-          icon={Link2}
-          onPress={() => router.push("/invitation")}
-          title="Aceptar invitación"
-          variant="ghost"
-        />
-        <Button icon={LogOut} onPress={signOut} title="Cerrar sesión" variant="secondary" />
       </ScrollView>
     </View>
   );

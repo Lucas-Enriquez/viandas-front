@@ -185,3 +185,10 @@ export type GlobalInvitationPreviewResponse = {
   usable: boolean;
   usedCount: number;
 };
+
+export type GlobalInvitationResponse = {
+  token: string;
+  company: string;
+  expiresAt: string;
+  link: string;
+};

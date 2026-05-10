@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { ClipboardCheck, Link2, RefreshCw, ShoppingBag } from "lucide-react-native";
@@ -8,11 +8,12 @@ import { getApiErrorMessage } from "../../src/api/client";
 import { employeeApi } from "../../src/api/employee";
 import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
-import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
-import { Screen } from "../../src/components/Screen";
+import { Hero } from "../../src/components/Hero";
+import { Skeleton } from "../../src/components/Skeleton";
+import { EmptyState, ErrorState } from "../../src/components/StateViews";
 import { StatusPill } from "../../src/components/StatusPill";
 import { getStoredGlobalMenuLink } from "../../src/storage";
-import { colors, spacing, typography } from "../../src/theme";
+import { colors, radius, spacing, typography } from "../../src/theme";
 import { formatMoney } from "../../src/utils/format";
 
 export default function EmployeeOrderScreen() {
@@ -40,10 +41,6 @@ export default function EmployeeOrderScreen() {
     );
   }
 
-  if (orderQuery.isLoading) {
-    return <LoadingState label="Buscando tu pedido..." />;
-  }
-
   if (orderQuery.isError) {
     return (
       <ErrorState
@@ -58,54 +55,82 @@ export default function EmployeeOrderScreen() {
 
   const current = orderQuery.data;
   const order = current?.order;
+  const isLoading = orderQuery.isLoading;
 
-  if (!order) {
-    return (
-      <EmptyState
-        actionLabel="Ver menú"
-        icon={ShoppingBag}
-        message={current?.message ?? "Todavía no hiciste un pedido para este menú."}
-        onAction={() => router.push("/employee-menu")}
-        title="Sin pedido"
-      />
-    );
-  }
+  const heroTitle = order ? `Pedido ${order.id.slice(0, 8)}` : "Mi pedido";
+  const heroSubtitle = order
+    ? statusLabel(order.status)
+    : current?.message ?? "Cargando…";
 
   return (
-    <Screen>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>Mi pedido</Text>
-        <Text style={styles.title}>Pedido {order.id.slice(0, 8)}</Text>
-        <Text style={styles.subtitle}>{current?.message}</Text>
-      </View>
-
-      <Card style={styles.card}>
-        <View style={styles.cardHeader}>
-          <StatusPill label={statusLabel(order.status)} tone="success" />
-          <Text style={styles.total}>{formatMoney(order.totalAmount)}</Text>
-        </View>
-
-        <View style={styles.items}>
-          {order.items.map((item) => (
-            <View key={item.menuItemId} style={styles.itemRow}>
-              <Text style={styles.itemQty}>x{item.quantity}</Text>
-              <View style={styles.itemTextBlock}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                {!!item.comment && <Text style={styles.comment}>{item.comment}</Text>}
-              </View>
-              <Text style={styles.itemPrice}>{formatMoney(item.unitPrice)}</Text>
-            </View>
-          ))}
-        </View>
-      </Card>
-
-      <Button
-        icon={ClipboardCheck}
-        onPress={() => orderQuery.refetch()}
-        title="Actualizar"
-        variant="secondary"
+    <View style={styles.root}>
+      <Hero
+        eyebrow="Mi pedido"
+        rightAccessory={
+          <View style={styles.heroIcon}>
+            <ClipboardCheck color={colors.onBrand} size={24} strokeWidth={2.4} />
+          </View>
+        }
+        subtitle={heroSubtitle}
+        title={heroTitle}
       />
-    </Screen>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {isLoading ? (
+          <View style={styles.skeletonGroup}>
+            <Skeleton.Card height={180} />
+            <Skeleton.Card height={120} />
+          </View>
+        ) : !order ? (
+          <Card style={styles.emptyCard}>
+            <View style={styles.emptyIcon}>
+              <ShoppingBag color={colors.brandRed} size={32} strokeWidth={2.4} />
+            </View>
+            <Text style={styles.emptyTitle}>Sin pedido</Text>
+            <Text style={styles.emptyMessage}>
+              {current?.message ?? "Todavía no hiciste un pedido para este menú."}
+            </Text>
+            <Button
+              onPress={() => router.push("/employee-menu")}
+              title="Ver menú"
+              variant="secondary"
+            />
+          </Card>
+        ) : (
+          <>
+            <Card style={styles.card}>
+              <View style={styles.cardHeader}>
+                <StatusPill label={statusLabel(order.status)} tone="success" />
+                <Text style={styles.total}>{formatMoney(order.totalAmount)}</Text>
+              </View>
+
+              <View style={styles.items}>
+                {order.items.map((item) => (
+                  <View key={item.menuItemId} style={styles.itemRow}>
+                    <Text style={styles.itemQty}>x{item.quantity}</Text>
+                    <View style={styles.itemTextBlock}>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      {!!item.comment && <Text style={styles.comment}>{item.comment}</Text>}
+                    </View>
+                    <Text style={styles.itemPrice}>{formatMoney(item.unitPrice)}</Text>
+                  </View>
+                ))}
+              </View>
+            </Card>
+
+            <Button
+              icon={RefreshCw}
+              onPress={() => orderQuery.refetch()}
+              title="Actualizar"
+              variant="secondary"
+            />
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -122,6 +147,50 @@ function statusLabel(status: string) {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
+  scrollContent: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+  },
+  skeletonGroup: {
+    gap: spacing.md,
+  },
+  heroIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: radius.lg,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  emptyCard: {
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.xl,
+  },
+  emptyIcon: {
+    alignItems: "center",
+    backgroundColor: colors.redSoft,
+    borderRadius: radius.lg,
+    height: 72,
+    justifyContent: "center",
+    width: 72,
+  },
+  emptyTitle: {
+    ...typography.h2,
+    color: colors.ink,
+    textAlign: "center",
+  },
+  emptyMessage: {
+    ...typography.body,
+    color: colors.muted,
+    maxWidth: 300,
+    textAlign: "center",
+  },
   card: {
     gap: spacing.md,
   },
@@ -133,13 +202,6 @@ const styles = StyleSheet.create({
   comment: {
     ...typography.caption,
     color: colors.muted,
-  },
-  eyebrow: {
-    ...typography.captionStrong,
-    color: colors.brandRed,
-  },
-  header: {
-    gap: spacing.xs,
   },
   itemName: {
     ...typography.body,
@@ -164,14 +226,6 @@ const styles = StyleSheet.create({
   },
   items: {
     gap: spacing.sm,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.muted,
-  },
-  title: {
-    ...typography.h1,
-    color: colors.ink,
   },
   total: {
     ...typography.h2,

@@ -16,9 +16,11 @@ type StateProps = {
 
 export function LoadingState({ label }: { label: string }) {
   return (
-    <Screen scroll={false} contentStyle={styles.centered}>
-      <ActivityIndicator color={colors.brandRed} size="large" />
-      <Text style={styles.message}>{label}</Text>
+    <Screen scroll={false}>
+      <View style={styles.fillCentered}>
+        <ActivityIndicator color={colors.brandRed} size="large" />
+        <Text style={styles.message}>{label}</Text>
+      </View>
     </Screen>
   );
 }
@@ -52,20 +54,24 @@ export function ErrorState({
   title,
 }: StateProps) {
   return (
-    <Screen scroll={false} contentStyle={styles.centered}>
-      <View style={styles.iconWrap}>
-        <Icon color={colors.brandRed} size={34} strokeWidth={2.4} />
+    <Screen scroll={false}>
+      <View style={styles.fillCentered}>
+        <View style={styles.iconWrap}>
+          <Icon color={colors.brandRed} size={34} strokeWidth={2.4} />
+        </View>
+        <Text style={styles.title}>{title}</Text>
+        {!!message && <Text style={styles.message}>{message}</Text>}
+        {!!actionLabel && !!onAction && <Button onPress={onAction} title={actionLabel} />}
       </View>
-      <Text style={styles.title}>{title}</Text>
-      {!!message && <Text style={styles.message}>{message}</Text>}
-      {!!actionLabel && !!onAction && <Button onPress={onAction} title={actionLabel} />}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  centered: {
+  fillCentered: {
     alignItems: "center",
+    flex: 1,
+    gap: spacing.sm,
     justifyContent: "center",
   },
   state: {

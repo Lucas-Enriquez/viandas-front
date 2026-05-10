@@ -15,6 +15,6 @@ export default function IndexScreen() {
   }
 
   return (
-    <Redirect href={session.user.role === "EMPLOYEE" ? "/employee-menu" : "/companies"} />
+    <Redirect href={session.user.role === "EMPLOYEE" ? "/employee-menu" : "/menus"} />
   );
 }

@@ -4,6 +4,8 @@ import {
   Image,
   Linking,
   Pressable,
+  RefreshControl,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -12,8 +14,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import {
-  CalendarDays,
+  ChevronRight,
   Clock,
+  Copy,
   Globe2,
   ImageOff,
   MessageCircle,
@@ -25,20 +28,26 @@ import {
 
 import { getApiErrorMessage } from "../../src/api/client";
 import { menusApi } from "../../src/api/menus";
+import { useAuth } from "../../src/auth/AuthContext";
 import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
-import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
-import { Screen } from "../../src/components/Screen";
+import { Hero } from "../../src/components/Hero";
+import { Skeleton } from "../../src/components/Skeleton";
+import { EmptyState, ErrorState } from "../../src/components/StateViews";
 import { StatusPill } from "../../src/components/StatusPill";
-import { colors, spacing, typography } from "../../src/theme";
+import { useToast } from "../../src/providers/ToastProvider";
+import { colors, radius, shadows, spacing, typography } from "../../src/theme";
 import type { MenuResponse, MenuScope } from "../../src/types";
 import { formatMenuDate, todayYmd } from "../../src/utils/date";
 import { formatMoney } from "../../src/utils/format";
 
 export default function MenusScreen() {
-  const [scope, setScope] = useState<MenuScope>("COMPANY");
+  const [scope, setScope] = useState<MenuScope>("GLOBAL");
   const date = todayYmd();
   const queryClient = useQueryClient();
+  const { session } = useAuth();
+  const toast = useToast();
+  const firstName = session?.user.name?.split(" ")[0] ?? "Cocina";
 
   const menusQuery = useQuery({
     queryFn: () => menusApi.list({ date }),
@@ -48,7 +57,11 @@ export default function MenusScreen() {
   const publishMutation = useMutation({
     mutationFn: menusApi.publish,
     onError: (error) => {
-      Alert.alert("No pudimos publicar el menú", getApiErrorMessage(error));
+      toast.show({
+        title: "No pudimos publicar el menú",
+        message: getApiErrorMessage(error),
+        tone: "error",
+      });
     },
     onSuccess: async (share) => {
       queryClient.invalidateQueries({ queryKey: ["menus"] });
@@ -59,16 +72,39 @@ export default function MenusScreen() {
   const shareMutation = useMutation({
     mutationFn: menusApi.shareMessage,
     onError: (error) => {
-      Alert.alert("No pudimos obtener el link", getApiErrorMessage(error));
+      toast.show({
+        title: "No pudimos obtener el link",
+        message: getApiErrorMessage(error),
+        tone: "error",
+      });
     },
     onSuccess: async (share) => {
       await shareMenu(share.whatsappText || share.publicUrl);
     },
   });
 
-  if (menusQuery.isLoading) {
-    return <LoadingState label="Cargando menús..." />;
-  }
+  const cloneMutation = useMutation({
+    mutationFn: async () => {
+      const yesterday = todayYmd(new Date(Date.now() - 24 * 60 * 60 * 1000));
+      const list = await menusApi.list({ date: yesterday });
+      const sourceMenu = list.find((m) => m.scope === "GLOBAL");
+      if (!sourceMenu) {
+        throw new Error("No hay menú global de ayer para clonar.");
+      }
+      return menusApi.clone(sourceMenu.id, { date });
+    },
+    onError: (error) => {
+      toast.show({
+        title: "No pudimos clonar el menú",
+        message: getApiErrorMessage(error),
+        tone: "error",
+      });
+    },
+    onSuccess: (cloned) => {
+      queryClient.invalidateQueries({ queryKey: ["menus"] });
+      router.push({ pathname: "/menu-create", params: { id: cloned.id } });
+    },
+  });
 
   if (menusQuery.isError) {
     return (
@@ -86,61 +122,160 @@ export default function MenusScreen() {
     (menusQuery.data ?? []).filter((menu) => menu.scope === scope),
   );
 
+  const totalItems = menus.reduce((sum, m) => sum + m.items.length, 0);
+  const publishedCount = menus.filter((m) => m.status === "PUBLISHED").length;
+
   return (
-    <Screen>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>Menús</Text>
-        <Text style={styles.title}>Menús de hoy</Text>
-        <Text style={styles.subtitle}>{formatMenuDate(date)}</Text>
-      </View>
+    <View style={styles.root}>
+      <Hero
+        eyebrow={formatMenuDate(date)}
+        title={`Buen día, ${firstName}`}
+        subtitle="¿Arrancamos con el menú del día?"
+      >
+        <View style={styles.statsRow}>
+          <StatChip label={String(menus.length)} caption={menus.length === 1 ? "menú" : "menús"} />
+          <StatChip label={String(totalItems)} caption="items" />
+          <StatChip label={String(publishedCount)} caption="publicados" />
+        </View>
+      </Hero>
 
-      <View style={styles.segmented}>
-        {(["COMPANY", "GLOBAL"] as MenuScope[]).map((option) => (
-          <Pressable
-            key={option}
-            onPress={() => setScope(option)}
-            style={[styles.segment, scope === option && styles.segmentActive]}
-          >
-            <Text style={[styles.segmentText, scope === option && styles.segmentTextActive]}>
-              {option === "COMPANY" ? "Por empresa" : "Global"}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Button
-        icon={Plus}
-        onPress={() => router.push({ pathname: "/menu-create", params: { scope } })}
-        title={scope === "COMPANY" ? "Crear menú por empresa" : "Crear menú global"}
-        variant="secondary"
-      />
-
-      {menus.length === 0 ? (
-        <EmptyState
-          actionLabel="Crear menú"
-          icon={Utensils}
-          message={
-            scope === "COMPANY"
-              ? "No hay menús por empresa para hoy."
-              : "No hay menús globales para hoy."
-          }
-          onAction={() => router.push({ pathname: "/menu-create", params: { scope } })}
-          title="Sin menús"
-        />
-      ) : (
-        <View style={styles.list}>
-          {menus.map((menu) => (
-            <MenuCard
-              key={`${menu.scope}-${menu.id}`}
-              menu={menu}
-              onPublish={() => publishMutation.mutate(menu.id)}
-              onShare={() => shareMutation.mutate(menu.id)}
-              publishing={publishMutation.isPending}
-            />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            colors={[colors.brandRed]}
+            onRefresh={() => menusQuery.refetch()}
+            refreshing={menusQuery.isFetching && !menusQuery.isLoading}
+            tintColor={colors.brandRed}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.segmented}>
+          {(["GLOBAL", "COMPANY"] as MenuScope[]).map((option) => (
+            <Pressable
+              key={option}
+              onPress={() => setScope(option)}
+              style={[styles.segment, scope === option && styles.segmentActive]}
+            >
+              <Text style={[styles.segmentText, scope === option && styles.segmentTextActive]}>
+                {option === "GLOBAL" ? "Global" : "Por empresa"}
+              </Text>
+            </Pressable>
           ))}
         </View>
-      )}
-    </Screen>
+
+        {scope === "GLOBAL" && (
+          <Pressable
+            disabled={cloneMutation.isPending}
+            onPress={() => cloneMutation.mutate()}
+            style={({ pressed }) => [styles.primaryAction, pressed && styles.actionPressed]}
+          >
+            <View style={styles.primaryActionIcon}>
+              <Copy color={colors.onBrand} size={26} strokeWidth={2.4} />
+            </View>
+            <View style={styles.primaryActionCopy}>
+              <Text style={styles.primaryActionTitle}>Clonar menú de ayer</Text>
+              <Text style={styles.primaryActionMeta}>
+                Empezá con la misma base y ajustá precios o stock.
+              </Text>
+            </View>
+            <ChevronRight color={colors.onBrand} size={20} strokeWidth={2.4} />
+          </Pressable>
+        )}
+
+        <View style={styles.actionGrid}>
+          <ActionTile
+            icon={Plus}
+            onPress={() => router.push({ pathname: "/menu-create", params: { scope } })}
+            subtitle={scope === "GLOBAL" ? "Empezá vacío" : "Por empresa"}
+            title="Crear menú"
+          />
+          <ActionTile
+            icon={MessageCircle}
+            onPress={() => {
+              const lastPublished = menus.find((m) => m.status === "PUBLISHED");
+              if (!lastPublished) {
+                Alert.alert("Sin publicar", "Todavía no publicaste un menú hoy.");
+                return;
+              }
+              shareMutation.mutate(lastPublished.id);
+            }}
+            subtitle="Último publicado"
+            title="Compartir"
+          />
+        </View>
+
+        <View style={styles.todayHeader}>
+          <Text style={styles.todayLabel}>Hoy</Text>
+          <Text style={styles.todayHint}>{menus.length} resultado{menus.length === 1 ? "" : "s"}</Text>
+        </View>
+
+        {menusQuery.isLoading ? (
+          <View style={styles.list}>
+            <Skeleton.Card height={140} />
+            <Skeleton.Card height={140} />
+            <Skeleton.Card height={140} />
+          </View>
+        ) : menus.length === 0 ? (
+          <EmptyState
+            icon={Utensils}
+            message={
+              scope === "GLOBAL"
+                ? "No hay menús globales para hoy."
+                : "No hay menús por empresa para hoy."
+            }
+            title="Sin menús"
+          />
+        ) : (
+          <View style={styles.list}>
+            {menus.map((menu) => (
+              <MenuCard
+                key={`${menu.scope}-${menu.id}`}
+                menu={menu}
+                onPublish={() => publishMutation.mutate(menu.id)}
+                onShare={() => shareMutation.mutate(menu.id)}
+                publishing={publishMutation.isPending}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+function StatChip({ label, caption }: { label: string; caption: string }) {
+  return (
+    <View style={styles.statChip}>
+      <Text style={styles.statValue}>{label}</Text>
+      <Text style={styles.statCaption}>{caption}</Text>
+    </View>
+  );
+}
+
+function ActionTile({
+  icon: Icon,
+  onPress,
+  subtitle,
+  title,
+}: {
+  icon: typeof Plus;
+  onPress: () => void;
+  subtitle: string;
+  title: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.actionTile, pressed && styles.actionPressed]}
+    >
+      <View style={styles.actionTileIcon}>
+        <Icon color={colors.brandRed} size={22} strokeWidth={2.4} />
+      </View>
+      <Text style={styles.actionTileTitle}>{title}</Text>
+      <Text style={styles.actionTileSubtitle}>{subtitle}</Text>
+    </Pressable>
   );
 }
 
@@ -180,32 +315,27 @@ function MenuCard({
         />
       </View>
 
-      <View style={styles.itemGrid}>
-        {previewItems.map((item, index) => (
-          <View key={`${menu.id}-${item.id}-${index}`} style={styles.item}>
-            {item.photoUrl ? (
-              <Image source={{ uri: item.photoUrl }} style={styles.itemImage} />
-            ) : (
-              <View style={styles.itemImageFallback}>
-                <ImageOff color={colors.muted} size={18} strokeWidth={2.4} />
+      {previewItems.length > 0 && (
+        <View style={styles.itemGrid}>
+          {previewItems.map((item, index) => (
+            <View key={`${menu.id}-${item.id}-${index}`} style={styles.item}>
+              {item.photoUrl ? (
+                <Image source={{ uri: item.photoUrl }} style={styles.itemImage} />
+              ) : (
+                <View style={styles.itemImageFallback}>
+                  <ImageOff color={colors.muted} size={18} strokeWidth={2.4} />
+                </View>
+              )}
+              <View style={styles.itemCopy}>
+                <Text numberOfLines={1} style={styles.itemName}>
+                  {item.name}
+                </Text>
+                <Text style={styles.itemMeta}>{formatMoney(item.price)}</Text>
               </View>
-            )}
-            <View style={styles.itemCopy}>
-              <Text numberOfLines={1} style={styles.itemName}>
-                {item.name}
-              </Text>
-              <Text style={styles.itemMeta}>{formatMoney(item.price)}</Text>
             </View>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.footer}>
-        <View style={styles.metaRow}>
-          <CalendarDays color={colors.brandRed} size={16} strokeWidth={2.4} />
-          <Text style={styles.footerText}>{menu.items.length} items</Text>
+          ))}
         </View>
-      </View>
+      )}
 
       <View style={styles.cardActions}>
         {menu.status === "DRAFT" ? (
@@ -220,8 +350,9 @@ function MenuCard({
           <Button
             icon={MessageCircle}
             onPress={onShare}
-            style={styles.fullWidthButton}
-            title="Compartir por WhatsApp"
+            size="small"
+            title="Compartir"
+            variant="secondary"
           />
         )}
       </View>
@@ -246,16 +377,13 @@ async function shareMenu(message: string) {
     Alert.alert("Sin mensaje", "El backend no devolvió texto para compartir.");
     return;
   }
-
   const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
-
   try {
     await Linking.openURL(whatsappUrl);
     return;
   } catch {
-    // If WhatsApp is not installed or cannot handle the URL, use the native share sheet.
+    // fallback below
   }
-
   try {
     await Share.share({ message });
   } catch {
@@ -264,12 +392,151 @@ async function shareMenu(message: string) {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
+  scrollContent: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  statChip: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: radius.lg,
+    flex: 1,
+    gap: 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  statValue: {
+    color: colors.onBrand,
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  statCaption: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  segmented: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: "row",
+    padding: 4,
+  },
+  segment: {
+    alignItems: "center",
+    borderRadius: radius.pill,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 40,
+  },
+  segmentActive: {
+    backgroundColor: colors.brandRed,
+  },
+  segmentText: {
+    ...typography.captionStrong,
+    color: colors.muted,
+  },
+  segmentTextActive: {
+    color: colors.onBrand,
+  },
+  primaryAction: {
+    alignItems: "center",
+    backgroundColor: colors.brandRed,
+    borderRadius: radius.xl,
+    flexDirection: "row",
+    gap: spacing.md,
+    padding: spacing.lg,
+    ...shadows.brand,
+  },
+  primaryActionIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: radius.md,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  primaryActionCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  primaryActionTitle: {
+    color: colors.onBrand,
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  primaryActionMeta: {
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  actionPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  actionGrid: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  actionTile: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    flex: 1,
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  actionTileIcon: {
+    alignItems: "center",
+    backgroundColor: colors.redSoft,
+    borderRadius: radius.md,
+    height: 40,
+    justifyContent: "center",
+    marginBottom: spacing.xs,
+    width: 40,
+  },
+  actionTileTitle: {
+    ...typography.bodyStrong,
+    color: colors.ink,
+  },
+  actionTileSubtitle: {
+    ...typography.caption,
+    color: colors.muted,
+  },
+  todayHeader: {
+    alignItems: "baseline",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: spacing.sm,
+  },
+  todayLabel: {
+    ...typography.h2,
+    color: colors.ink,
+  },
+  todayHint: {
+    ...typography.caption,
+    color: colors.muted,
+  },
+  list: {
+    gap: spacing.md,
+  },
   card: {
     gap: spacing.md,
   },
   cardActions: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: spacing.sm,
   },
   cardHeader: {
@@ -281,26 +548,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...typography.h2,
     color: colors.ink,
-  },
-  eyebrow: {
-    ...typography.captionStrong,
-    color: colors.brandRed,
-  },
-  footer: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    paddingTop: spacing.md,
-  },
-  footerText: {
-    ...typography.bodyStrong,
-    color: colors.brandRed,
-  },
-  fullWidthButton: {
-    alignSelf: "stretch",
-    width: "100%",
-  },
-  header: {
-    gap: spacing.xs,
   },
   item: {
     alignItems: "center",
@@ -315,14 +562,14 @@ const styles = StyleSheet.create({
   },
   itemImage: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     height: 48,
     width: 48,
   },
   itemImageFallback: {
     alignItems: "center",
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     height: 48,
     justifyContent: "center",
     width: 48,
@@ -334,10 +581,6 @@ const styles = StyleSheet.create({
   itemName: {
     ...typography.bodyStrong,
     color: colors.ink,
-  },
-  list: {
-    gap: spacing.md,
-    marginTop: spacing.sm,
   },
   menuInfo: {
     flex: 1,
@@ -356,38 +599,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: spacing.xs,
-  },
-  segment: {
-    alignItems: "center",
-    borderRadius: 8,
-    flex: 1,
-    minHeight: 44,
-    justifyContent: "center",
-  },
-  segmentActive: {
-    backgroundColor: colors.brandRed,
-  },
-  segmented: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: "row",
-    padding: 4,
-  },
-  segmentText: {
-    ...typography.captionStrong,
-    color: colors.muted,
-  },
-  segmentTextActive: {
-    color: colors.onBrand,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.muted,
-  },
-  title: {
-    ...typography.h1,
-    color: colors.ink,
   },
 });

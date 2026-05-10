@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import {
@@ -17,11 +17,13 @@ import { deliveryApi } from "../../src/api/delivery";
 import { ordersApi, type OrderAction } from "../../src/api/orders";
 import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
-import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
-import { Screen } from "../../src/components/Screen";
+import { Hero } from "../../src/components/Hero";
+import { Skeleton } from "../../src/components/Skeleton";
+import { EmptyState, ErrorState } from "../../src/components/StateViews";
 import { StatusPill } from "../../src/components/StatusPill";
 import { startDeliveryTracking } from "../../src/services/locationTask";
-import { colors, spacing, typography } from "../../src/theme";
+import { useToast } from "../../src/providers/ToastProvider";
+import { colors, radius, spacing, typography } from "../../src/theme";
 import type { OrderResponse, OrderStatus } from "../../src/types";
 import { formatMoney } from "../../src/utils/format";
 
@@ -36,6 +38,7 @@ const STATUS_GROUPS: Array<{ label: string; status: OrderStatus }> = [
 
 export default function OrdersScreen() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const ordersQuery = useQuery({
     queryFn: ordersApi.today,
     queryKey: ["orders", "today"],
@@ -46,7 +49,11 @@ export default function OrdersScreen() {
     mutationFn: ({ action, id }: { action: OrderAction; id: string }) =>
       ordersApi.updateStatus(id, action),
     onError: (error) => {
-      Alert.alert("No pudimos actualizar el pedido", getApiErrorMessage(error));
+      toast.show({
+        title: "No pudimos actualizar el pedido",
+        message: getApiErrorMessage(error),
+        tone: "error",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders", "today"] });
@@ -60,7 +67,11 @@ export default function OrdersScreen() {
       return session;
     },
     onError: (error) => {
-      Alert.alert("No pudimos iniciar el reparto", getApiErrorMessage(error));
+      toast.show({
+        title: "No pudimos iniciar el reparto",
+        message: getApiErrorMessage(error),
+        tone: "error",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders", "today"] });
@@ -71,10 +82,12 @@ export default function OrdersScreen() {
   const orders = ordersQuery.data ?? [];
   const batches = useMemo(() => groupByDeliveryBatch(orders), [orders]);
   const totalAmount = orders.reduce((sum, order) => sum + order.totalAmount, 0);
-
-  if (ordersQuery.isLoading) {
-    return <LoadingState label="Cargando pedidos..." />;
-  }
+  const inKitchen = orders.filter(
+    (o) => o.status === "RECEIVED" || o.status === "PREPARING",
+  ).length;
+  const onRoute = orders.filter(
+    (o) => o.status === "OUT_FOR_DELIVERY" || o.status === "NEARBY",
+  ).length;
 
   if (ordersQuery.isError) {
     return (
@@ -88,92 +101,115 @@ export default function OrdersScreen() {
     );
   }
 
+  const isLoading = ordersQuery.isLoading;
+
   return (
-    <Screen>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>Pedidos</Text>
-        <Text style={styles.title}>Pedidos de hoy</Text>
-        <Text style={styles.subtitle}>Se actualiza automáticamente cada 20 segundos.</Text>
-      </View>
-
-      <Card style={styles.summary}>
-        <View>
-          <Text style={styles.summaryValue}>{orders.length}</Text>
-          <Text style={styles.summaryLabel}>pedidos</Text>
+    <View style={styles.root}>
+      <Hero
+        eyebrow="Pedidos"
+        title="Pedidos de hoy"
+        subtitle="Se actualiza automáticamente cada 20s."
+      >
+        <View style={styles.statsRow}>
+          <StatChip label={String(orders.length)} caption={orders.length === 1 ? "pedido" : "pedidos"} />
+          <StatChip label={String(inKitchen)} caption="en cocina" />
+          <StatChip label={String(onRoute)} caption="en reparto" />
         </View>
-        <View>
-          <Text style={styles.summaryValue}>{formatMoney(totalAmount)}</Text>
-          <Text style={styles.summaryLabel}>total estimado</Text>
+      </Hero>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            colors={[colors.brandRed]}
+            onRefresh={() => ordersQuery.refetch()}
+            refreshing={ordersQuery.isFetching && !ordersQuery.isLoading}
+            tintColor={colors.brandRed}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Total estimado</Text>
+          <Text style={styles.totalValue}>{formatMoney(totalAmount)}</Text>
         </View>
-      </Card>
 
-      <Button
-        icon={RefreshCw}
-        onPress={() => ordersQuery.refetch()}
-        title="Actualizar"
-        variant="secondary"
-      />
-
-      {orders.length === 0 ? (
-        <EmptyState
-          icon={PackageCheck}
-          message="Cuando entren pedidos para tus menús, los vas a ver acá."
-          title="Sin pedidos"
-        />
-      ) : (
-        <View style={styles.groups}>
-          {batches.map((batch) => (
-            <Card key={batch.key} style={styles.batchCard}>
-              <View style={styles.batchHeader}>
-                <View style={styles.batchInfo}>
-                  <Text style={styles.batchTitle}>Menú {shortId(batch.menuId)}</Text>
-                  <Text style={styles.batchMeta}>Empresa {shortId(batch.companyId)}</Text>
-                </View>
-                <Button
-                  icon={Truck}
-                  loading={startDeliveryMutation.isPending}
-                  onPress={() =>
-                    startDeliveryMutation.mutate({
-                      companyId: batch.companyId,
-                      menuId: batch.menuId,
-                    })
-                  }
-                  size="small"
-                  title="Iniciar reparto"
-                />
-              </View>
-
-              {STATUS_GROUPS.map((group) => {
-                const groupOrders = batch.orders.filter(
-                  (order) => order.status === group.status,
-                );
-                if (groupOrders.length === 0) {
-                  return null;
-                }
-                return (
-                  <View key={group.status} style={styles.statusGroup}>
-                    <View style={styles.groupHeader}>
-                      <Text style={styles.groupTitle}>{group.label}</Text>
-                      <StatusPill label={String(groupOrders.length)} tone="neutral" />
-                    </View>
-                    {groupOrders.map((order) => (
-                      <OrderCard
-                        isMutating={orderActionMutation.isPending}
-                        key={order.id}
-                        onAction={(action) =>
-                          orderActionMutation.mutate({ action, id: order.id })
-                        }
-                        order={order}
-                      />
-                    ))}
+        {isLoading ? (
+          <View style={styles.skeletonGroup}>
+            <Skeleton.Card height={120} />
+            <Skeleton.Card height={140} />
+            <Skeleton.Card height={120} />
+          </View>
+        ) : orders.length === 0 ? (
+          <EmptyState
+            icon={PackageCheck}
+            message="Cuando entren pedidos para tus menús, los vas a ver acá."
+            title="Sin pedidos"
+          />
+        ) : (
+          <View style={styles.groups}>
+            {batches.map((batch) => (
+              <Card key={batch.key} style={styles.batchCard}>
+                <View style={styles.batchHeader}>
+                  <View style={styles.batchInfo}>
+                    <Text style={styles.batchTitle}>Menú {shortId(batch.menuId)}</Text>
+                    <Text style={styles.batchMeta}>Empresa {shortId(batch.companyId)}</Text>
                   </View>
-                );
-              })}
-            </Card>
-          ))}
-        </View>
-      )}
-    </Screen>
+                  <Button
+                    icon={Truck}
+                    loading={startDeliveryMutation.isPending}
+                    onPress={() =>
+                      startDeliveryMutation.mutate({
+                        companyId: batch.companyId,
+                        menuId: batch.menuId,
+                      })
+                    }
+                    size="small"
+                    title="Iniciar reparto"
+                  />
+                </View>
+
+                {STATUS_GROUPS.map((group) => {
+                  const groupOrders = batch.orders.filter(
+                    (order) => order.status === group.status,
+                  );
+                  if (groupOrders.length === 0) {
+                    return null;
+                  }
+                  return (
+                    <View key={group.status} style={styles.statusGroup}>
+                      <View style={styles.groupHeader}>
+                        <Text style={styles.groupTitle}>{group.label}</Text>
+                        <StatusPill label={String(groupOrders.length)} tone="neutral" />
+                      </View>
+                      {groupOrders.map((order) => (
+                        <OrderCard
+                          isMutating={orderActionMutation.isPending}
+                          key={order.id}
+                          onAction={(action) =>
+                            orderActionMutation.mutate({ action, id: order.id })
+                          }
+                          order={order}
+                        />
+                      ))}
+                    </View>
+                  );
+                })}
+              </Card>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+function StatChip({ label, caption }: { label: string; caption: string }) {
+  return (
+    <View style={styles.statChip}>
+      <Text style={styles.statValue}>{label}</Text>
+      <Text style={styles.statCaption}>{caption}</Text>
+    </View>
   );
 }
 
@@ -281,6 +317,60 @@ function shortId(id: string) {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
+  scrollContent: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  statChip: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: radius.lg,
+    flex: 1,
+    gap: 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  statValue: {
+    color: colors.onBrand,
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  statCaption: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  totalRow: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  totalLabel: {
+    ...typography.caption,
+    color: colors.muted,
+  },
+  totalValue: {
+    ...typography.bodyStrong,
+    color: colors.brandRed,
+  },
+  skeletonGroup: {
+    gap: spacing.md,
+  },
   actions: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -315,10 +405,6 @@ const styles = StyleSheet.create({
     ...typography.bodyStrong,
     color: colors.ink,
   },
-  eyebrow: {
-    ...typography.captionStrong,
-    color: colors.brandRed,
-  },
   groupHeader: {
     alignItems: "center",
     flexDirection: "row",
@@ -330,10 +416,6 @@ const styles = StyleSheet.create({
   },
   groups: {
     gap: spacing.lg,
-    marginTop: spacing.sm,
-  },
-  header: {
-    gap: spacing.xs,
   },
   itemName: {
     ...typography.body,
@@ -361,7 +443,7 @@ const styles = StyleSheet.create({
   },
   orderCard: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 8,
+    borderRadius: radius.md,
     gap: spacing.md,
     padding: spacing.md,
   },
@@ -386,28 +468,6 @@ const styles = StyleSheet.create({
   },
   statusGroup: {
     gap: spacing.sm,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.muted,
-  },
-  summary: {
-    flexDirection: "row",
-    gap: spacing.lg,
-    justifyContent: "space-between",
-  },
-  summaryLabel: {
-    ...typography.caption,
-    color: colors.muted,
-    marginTop: 2,
-  },
-  summaryValue: {
-    ...typography.h2,
-    color: colors.ink,
-  },
-  title: {
-    ...typography.h1,
-    color: colors.ink,
   },
   total: {
     ...typography.bodyStrong,

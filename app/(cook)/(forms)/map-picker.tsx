@@ -13,10 +13,10 @@ import * as Location from "expo-location";
 import { router } from "expo-router";
 import { MapPin, Navigation, Search, X } from "lucide-react-native";
 
-import { GOOGLE_MAPS_KEY } from "../../src/config";
-import { mapResultStore } from "../../src/stores/mapResult";
-import { Button } from "../../src/components/Button";
-import { colors, radius, shadows, spacing, typography } from "../../src/theme";
+import { GOOGLE_MAPS_KEY } from "../../../src/config";
+import { mapResultStore } from "../../../src/stores/mapResult";
+import { Button } from "../../../src/components/Button";
+import { colors, radius, shadows, spacing, typography } from "../../../src/theme";
 
 const DEFAULT_REGION: Region = {
   latitude: -34.6037,
@@ -206,7 +206,6 @@ const styles = StyleSheet.create({
   },
   pinWrapper: {
     alignItems: "center",
-    // shift up by half icon height so the tip points to map center
     transform: [{ translateY: -20 }],
   },
   pinShadow: {

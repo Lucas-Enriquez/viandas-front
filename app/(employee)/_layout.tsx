@@ -1,13 +1,15 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
-import { ClipboardCheck, LogOut, UserRound, Utensils } from "lucide-react-native";
+import { ClipboardCheck, UserRound, Utensils } from "lucide-react-native";
 
 import { useAuth } from "../../src/auth/AuthContext";
 import { LoadingState } from "../../src/components/StateViews";
-import { colors, spacing, typography } from "../../src/theme";
+import { colors } from "../../src/theme";
+
+const logoSource = require("../../assets/logo.png");
 
 export default function EmployeeLayout() {
-  const { isLoading, session, signOut } = useAuth();
+  const { isLoading, session } = useAuth();
 
   if (isLoading) {
     return <LoadingState label="Preparando tu sesión..." />;
@@ -24,26 +26,21 @@ export default function EmployeeLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerRight: () => (
-          <Pressable
-            accessibilityLabel="Cerrar sesión"
-            hitSlop={10}
-            onPress={signOut}
-            style={({ pressed }) => [styles.logout, pressed && styles.logoutPressed]}
-          >
-            <LogOut color={colors.muted} size={20} strokeWidth={2.4} />
-          </Pressable>
-        ),
         headerShadowVisible: false,
         headerStyle: { backgroundColor: colors.background },
-        headerTitle: () => <Text style={styles.brand}>Caseritas</Text>,
+        headerTitle: () => (
+          <Image
+            accessibilityLabel="Caseritas"
+            resizeMode="contain"
+            source={logoSource}
+            style={styles.headerLogo}
+          />
+        ),
+        headerTitleAlign: "center",
         sceneStyle: { backgroundColor: colors.background },
         tabBarActiveTintColor: colors.brandRed,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: {
-          ...typography.captionStrong,
-          textTransform: "uppercase",
-        },
+        tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
@@ -57,6 +54,7 @@ export default function EmployeeLayout() {
       <Tabs.Screen
         name="employee-menu"
         options={{
+          headerShown: false,
           tabBarIcon: ({ color }) => <Utensils color={color} size={22} strokeWidth={2.4} />,
           title: "Menú",
         }}
@@ -64,6 +62,7 @@ export default function EmployeeLayout() {
       <Tabs.Screen
         name="employee-order"
         options={{
+          headerShown: false,
           tabBarButton: (props) => (
             <Pressable
               accessibilityLabel={props.accessibilityLabel}
@@ -90,6 +89,7 @@ export default function EmployeeLayout() {
       <Tabs.Screen
         name="account"
         options={{
+          headerShown: false,
           tabBarIcon: ({ color }) => <UserRound color={color} size={22} strokeWidth={2.4} />,
           title: "Cuenta",
         }}
@@ -100,22 +100,15 @@ export default function EmployeeLayout() {
 }
 
 const styles = StyleSheet.create({
-  brand: {
-    ...typography.brand,
-    color: colors.brandRed,
+  headerLogo: {
+    height: 48,
+    width: 130,
   },
-  logout: {
-    alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 999,
-    height: 40,
-    justifyContent: "center",
-    marginRight: spacing.md,
-    width: 40,
-  },
-  logoutPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.94 }],
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+    marginTop: 2,
   },
   centerTabButton: {
     alignItems: "center",
@@ -143,9 +136,10 @@ const styles = StyleSheet.create({
     width: 66,
   },
   centerTabLabel: {
-    ...typography.captionStrong,
     color: colors.brandRed,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.2,
     marginTop: 4,
-    textTransform: "uppercase",
   },
 });

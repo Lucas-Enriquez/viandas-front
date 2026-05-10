@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import "../src/services/locationTask";
 import { AuthProvider } from "../src/auth/AuthContext";
+import { ToastProvider } from "../src/providers/ToastProvider";
 import { colors } from "../src/theme";
 
 const queryClient = new QueryClient({
@@ -26,13 +27,15 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <StatusBar style="dark" backgroundColor={colors.background} />
-          <Stack
-            screenOptions={{
-              contentStyle: { backgroundColor: colors.background },
-              headerShown: false,
-            }}
-          />
+          <ToastProvider>
+            <StatusBar style="dark" backgroundColor={colors.background} />
+            <Stack
+              screenOptions={{
+                contentStyle: { backgroundColor: colors.background },
+                headerShown: false,
+              }}
+            />
+          </ToastProvider>
         </AuthProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

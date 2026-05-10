@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npx expo *)",
       "Bash(npm uninstall *)",
-      "Bash(npm remove *)"
+      "Bash(npm remove *)",
+      "Bash(npx tsc *)"
     ]
   }
 }
