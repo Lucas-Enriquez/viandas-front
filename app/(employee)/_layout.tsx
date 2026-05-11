@@ -1,12 +1,10 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
 import { ClipboardCheck, UserRound, Utensils } from "lucide-react-native";
 
 import { useAuth } from "../../src/auth/AuthContext";
 import { LoadingState } from "../../src/components/StateViews";
 import { colors } from "../../src/theme";
-
-const logoSource = require("../../assets/logo.png");
 
 export default function EmployeeLayout() {
   const { isLoading, session } = useAuth();
@@ -26,17 +24,7 @@ export default function EmployeeLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShadowVisible: false,
-        headerStyle: { backgroundColor: colors.background },
-        headerTitle: () => (
-          <Image
-            accessibilityLabel="Caseritas"
-            resizeMode="contain"
-            source={logoSource}
-            style={styles.headerLogo}
-          />
-        ),
-        headerTitleAlign: "center",
+        headerShown: false,
         sceneStyle: { backgroundColor: colors.background },
         tabBarActiveTintColor: colors.brandRed,
         tabBarInactiveTintColor: colors.muted,
@@ -54,7 +42,6 @@ export default function EmployeeLayout() {
       <Tabs.Screen
         name="employee-menu"
         options={{
-          headerShown: false,
           tabBarIcon: ({ color }) => <Utensils color={color} size={22} strokeWidth={2.4} />,
           title: "Menú",
         }}
@@ -62,7 +49,6 @@ export default function EmployeeLayout() {
       <Tabs.Screen
         name="employee-order"
         options={{
-          headerShown: false,
           tabBarButton: (props) => (
             <Pressable
               accessibilityLabel={props.accessibilityLabel}
@@ -89,7 +75,6 @@ export default function EmployeeLayout() {
       <Tabs.Screen
         name="account"
         options={{
-          headerShown: false,
           tabBarIcon: ({ color }) => <UserRound color={color} size={22} strokeWidth={2.4} />,
           title: "Cuenta",
         }}
@@ -100,10 +85,6 @@ export default function EmployeeLayout() {
 }
 
 const styles = StyleSheet.create({
-  headerLogo: {
-    height: 48,
-    width: 130,
-  },
   tabLabel: {
     fontSize: 10,
     fontWeight: "700",

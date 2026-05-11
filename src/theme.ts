@@ -1,37 +1,82 @@
+// export const colors = {
+//   background:    "#F7F7F8",
+//   surface:       "#FFFFFF",
+//   surfaceMuted:  "#F1F2F4",
+//   surfaceWarm:   "#FEF2F2",
+//   border:        "#E5E7EB",
+//   borderStrong:  "#D1D5DB",
+
+//   ink:           "#0F1115",
+//   inkSoft:       "#1F2937",
+//   muted:         "#6B7280",
+//   placeholder:   "#9CA3AF",
+//   onBrand:       "#FFFFFF",
+
+//   brandRed:      "#D42020",
+//   brandRedDark:  "#991B1B",
+//   brandRedLight: "#EF4444",
+//   redBorder:     "#FCA5A5",
+//   redSoft:       "#FEE2E2",
+//   redSofter:     "#FEF2F2",
+
+//   accent:        "#2563EB",
+//   accentSoft:    "#DBEAFE",
+//   mustard:       "#F59E0B",
+//   mustardSoft:   "#FEF3C7",
+
+//   success:       "#059669",
+//   successSoft:   "#D1FAE5",
+//   warning:       "#D97706",
+//   warningSoft:   "#FEF3C7",
+//   yellow:        "#F59E0B",
+//   yellowSoft:    "#FEF3C7",
+
+//   shadow:        "#0F1115",
+// } as const;
+
+
 export const colors = {
-  background:    "#F7F7F8",
-  surface:       "#FFFFFF",
-  surfaceMuted:  "#F1F2F4",
-  surfaceWarm:   "#FEF2F2",
-  border:        "#E5E7EB",
-  borderStrong:  "#D1D5DB",
+  // --- Fondo y Superficies (Limpieza absoluta) ---
+  background:     "#FBFBFB", // Blanco casi puro para que la comida resalte
+  surface:        "#FFFFFF",
+  surfaceMuted:   "#F2F4F7",
+  surfaceWarm:    "#FFF9F5", // Un toque sutil de naranja/hueso
+  border:         "#E9EAEC", 
+  borderStrong:   "#D2D5DA",
 
-  ink:           "#0F1115",
-  inkSoft:       "#1F2937",
-  muted:         "#6B7280",
-  placeholder:   "#9CA3AF",
-  onBrand:       "#FFFFFF",
+  // --- Tipografía (Contraste alto y profesional) ---
+  ink:            "#1A1C1E", // Un "Charcoal" profundo para textos principales
+  inkSoft:        "#40444C",
+  muted:          "#667085", // Gris frío para descripciones
+  placeholder:    "#98A2B3",
+  onBrand:        "#FFFFFF",
 
-  brandRed:      "#DC2626",
-  brandRedDark:  "#991B1B",
-  brandRedLight: "#EF4444",
-  redBorder:     "#FCA5A5",
-  redSoft:       "#FEE2E2",
-  redSofter:     "#FEF2F2",
+  // --- El Rojo "Foodie" (Cálido, no rosado, no alerta) ---
+  // Este rojo tiene un toque de naranja, lo que lo hace ver como comida real.
+  brandRed:       "#C92A2A", // Un rojo "Tomate" maduro, sólido y confiable
+  brandRedDark:   "#A02121", 
+  brandRedLight:  "#E03131",
+  redBorder:      "#FFA8A8",
+  redSoft:        "#FFF5F5", 
+  redSofter:      "#FFF9F9",
 
-  accent:        "#2563EB",
-  accentSoft:    "#DBEAFE",
-  mustard:       "#F59E0B",
-  mustardSoft:   "#FEF3C7",
+  // --- Acentos de Frescura (Clave para Delivery/Viandas) ---
+  // Cambiamos el azul por un verde "Bosque" para evocar ingredientes frescos.
+  accent:         "#0891B2", // Un Cyan oscuro para elementos de info (reparto)
+  accentSoft:     "#ECFEFF",
+  
+  // Éxito / Vegetales
+  success:        "#2F855A", // Verde "Lechuga/Orgánico"
+  successSoft:    "#F0FFF4",
+  
+  // Advertencia / Cocción
+  warning:        "#D97706", 
+  warningSoft:    "#FFFBEB",
+  yellow:         "#F59E0B",
+  yellowSoft:     "#FEF3C7",
 
-  success:       "#059669",
-  successSoft:   "#D1FAE5",
-  warning:       "#D97706",
-  warningSoft:   "#FEF3C7",
-  yellow:        "#F59E0B",
-  yellowSoft:    "#FEF3C7",
-
-  shadow:        "#0F1115",
+  // --- Sombras ---
+  shadow:         "rgba(26, 28, 30, 0.06)", 
 } as const;
 
 export const spacing = {

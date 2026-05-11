@@ -1,11 +1,13 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { LogOut, Mail, ShieldCheck, UserRound } from "lucide-react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+import { Building2, ChevronRight, LogOut, Mail, ShieldCheck, UserRound } from "lucide-react-native";
 
 import { useAuth } from "../../src/auth/AuthContext";
 import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
 import { Hero } from "../../src/components/Hero";
 import { colors, radius, spacing, typography } from "../../src/theme";
+import { formatRole } from "../../src/utils/format";
 
 export default function CuentaScreen() {
   const { session, signOut } = useAuth();
@@ -39,7 +41,7 @@ export default function CuentaScreen() {
           <InfoRow
             icon={UserRound}
             label="Rol"
-            value={session?.user.role ?? "—"}
+            value={formatRole(session?.user.role)}
           />
           <InfoRow
             icon={Mail}
@@ -50,6 +52,16 @@ export default function CuentaScreen() {
             icon={ShieldCheck}
             label="ID"
             value={session?.user.id?.slice(0, 8) ?? "—"}
+          />
+        </Card>
+
+        <Card style={styles.card}>
+          <Text style={styles.sectionLabel}>Configuración</Text>
+          <NavRow
+            icon={Building2}
+            label="Empresas"
+            sublabel="Gestionar empresas que reciben tus menús"
+            onPress={() => router.push("/companies")}
           />
         </Card>
 
@@ -83,6 +95,34 @@ function InfoRow({
         <Text style={styles.rowValue}>{value}</Text>
       </View>
     </View>
+  );
+}
+
+function NavRow({
+  icon: Icon,
+  label,
+  sublabel,
+  onPress,
+}: {
+  icon: typeof UserRound;
+  label: string;
+  sublabel: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.navRow, pressed && styles.navRowPressed]}
+    >
+      <View style={styles.rowIcon}>
+        <Icon color={colors.brandRed} size={20} strokeWidth={2.4} />
+      </View>
+      <View style={styles.rowText}>
+        <Text style={styles.rowValue}>{label}</Text>
+        <Text style={styles.rowLabel}>{sublabel}</Text>
+      </View>
+      <ChevronRight color={colors.muted} size={18} strokeWidth={2.4} />
+    </Pressable>
   );
 }
 
@@ -136,5 +176,18 @@ const styles = StyleSheet.create({
   rowValue: {
     ...typography.bodyStrong,
     color: colors.ink,
+  },
+  sectionLabel: {
+    ...typography.captionStrong,
+    color: colors.muted,
+    textTransform: "uppercase",
+  },
+  navRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  navRowPressed: {
+    opacity: 0.6,
   },
 });

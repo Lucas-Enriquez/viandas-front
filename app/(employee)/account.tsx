@@ -7,6 +7,7 @@ import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
 import { Hero } from "../../src/components/Hero";
 import { colors, radius, spacing, typography } from "../../src/theme";
+import { formatRole } from "../../src/utils/format";
 
 export default function AccountScreen() {
   const { session, signOut } = useAuth();
@@ -38,7 +39,7 @@ export default function AccountScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Card style={styles.card}>
-          <InfoRow icon={UserRound} label="Rol" value={session?.user.role ?? "—"} />
+          <InfoRow icon={UserRound} label="Rol" value={formatRole(session?.user.role)} />
           <InfoRow icon={Mail} label="Email" value={session?.user.email ?? "—"} />
           <InfoRow icon={Building2} label="Empresa" value={company?.name ?? "—"} />
         </Card>

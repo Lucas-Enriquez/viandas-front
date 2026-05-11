@@ -14,6 +14,7 @@ import {
 import { getApiErrorMessage } from "../../../src/api/client";
 import { companiesApi } from "../../../src/api/companies";
 import { menusApi } from "../../../src/api/menus";
+import { productsApi } from "../../../src/api/products";
 import { Button } from "../../../src/components/Button";
 import { Card } from "../../../src/components/Card";
 import { DateTimeField } from "../../../src/components/DateTimeField";
@@ -23,7 +24,7 @@ import { Skeleton } from "../../../src/components/Skeleton";
 import { StatusPill } from "../../../src/components/StatusPill";
 import { useToast } from "../../../src/providers/ToastProvider";
 import { colors, radius, spacing, typography } from "../../../src/theme";
-import type { Company, MenuItemCategory, MenuScope } from "../../../src/types";
+import type { Company, MenuItemCategory, MenuScope, Product } from "../../../src/types";
 import { dateToBackendTime, timeToDate, todayYmd, ymdToDate } from "../../../src/utils/date";
 import { formatMoney } from "../../../src/utils/format";
 
@@ -46,6 +47,8 @@ export default function MenuCreateScreen() {
   const [itemCompanyIds, setItemCompanyIds] = useState<string[]>([]);
   const [date, setDate] = useState(() => ymdToDate(todayYmd()));
   const [orderClosesAt, setOrderClosesAt] = useState(() => timeToDate("11:30:00"));
+  const [itemMode, setItemMode] = useState<"CATALOG" | "FREE">("CATALOG");
+  const [pickedProductId, setPickedProductId] = useState<string | null>(null);
   const [itemName, setItemName] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState<MenuItemCategory>("PLATO");
@@ -55,6 +58,11 @@ export default function MenuCreateScreen() {
   const companiesQuery = useQuery({
     queryFn: companiesApi.list,
     queryKey: ["companies"],
+  });
+
+  const productsQuery = useQuery({
+    queryFn: () => productsApi.list(),
+    queryKey: ["products"],
   });
 
   const menuQuery = useQuery({
@@ -103,18 +111,30 @@ export default function MenuCreateScreen() {
   const addItemMutation = useMutation({
     mutationFn: async () => {
       if (!editingId) throw new Error("Menú no disponible.");
+      const parsedStock = remainingStock.trim() ? parseNumber(remainingStock) : undefined;
+      const availableCompanyIds = scope === "GLOBAL" ? itemCompanyIds : undefined;
+
+      if (itemMode === "CATALOG") {
+        if (!pickedProductId) throw new Error("Elegí un producto del catálogo.");
+        await menusApi.addItem(editingId, {
+          productId: pickedProductId,
+          remainingStock: parsedStock,
+          availableCompanyIds,
+        });
+        return;
+      }
+
       if (!itemName.trim()) throw new Error("Ingresá el nombre del item.");
       const parsedPrice = parseNumber(price);
       if (!parsedPrice || parsedPrice <= 0) {
         throw new Error("Ingresá un precio válido.");
       }
-      const parsedStock = remainingStock.trim() ? parseNumber(remainingStock) : undefined;
 
       await menusApi.addItem(editingId, {
-        availableCompanyIds: scope === "GLOBAL" ? itemCompanyIds : undefined,
+        availableCompanyIds,
         category,
         name: itemName.trim(),
-        photoUrl: photoUrl.trim() || undefined,
+        photoPublicId: photoUrl.trim() || undefined,
         price: parsedPrice,
         remainingStock: parsedStock,
       });
@@ -129,6 +149,8 @@ export default function MenuCreateScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["menu", editingId] });
       queryClient.invalidateQueries({ queryKey: ["menus"] });
+      toast.show({ title: "Item agregado", tone: "success" });
+      setPickedProductId(null);
       setItemName("");
       setPrice("");
       setRemainingStock("");
@@ -150,23 +172,6 @@ export default function MenuCreateScreen() {
         orderClosesAt: dateToBackendTime(orderClosesAt),
         scope,
       });
-
-      if (itemName.trim()) {
-        const parsedPrice = parseNumber(price);
-        const parsedStock = remainingStock.trim() ? parseNumber(remainingStock) : undefined;
-        if (!parsedPrice || parsedPrice <= 0) {
-          throw new Error("Ingresá un precio válido para el item.");
-        }
-
-        await menusApi.addItem(created.id, {
-          availableCompanyIds: scope === "GLOBAL" ? itemCompanyIds : undefined,
-          category,
-          name: itemName.trim(),
-          photoUrl: photoUrl.trim() || undefined,
-          price: parsedPrice,
-          remainingStock: parsedStock,
-        });
-      }
 
       return created;
     },
@@ -351,35 +356,95 @@ export default function MenuCreateScreen() {
         </Card>
       )}
 
+      {isEditing && (
       <Card style={styles.section}>
         <View style={styles.sectionHeader}>
           <Plus color={colors.brandRed} size={22} strokeWidth={2.4} />
-          <Text style={styles.sectionTitle}>
-            {isEditing ? "Agregar item" : "Primer item opcional"}
-          </Text>
+          <Text style={styles.sectionTitle}>Agregar item</Text>
         </View>
-        <Input label="Nombre" onChangeText={setItemName} value={itemName} />
-        <Input keyboardType="decimal-pad" label="Precio" onChangeText={setPrice} value={price} />
 
-        <Text style={styles.label}>Categoría</Text>
-        <View style={styles.categoryRow}>
-          {CATEGORIES.map((option) => (
+        <View style={styles.modeToggle}>
+          {(["CATALOG", "FREE"] as const).map((mode) => (
             <Pressable
-              key={option.value}
-              onPress={() => setCategory(option.value)}
-              style={[styles.categoryOption, category === option.value && styles.categoryActive]}
+              key={mode}
+              onPress={() => {
+                setItemMode(mode);
+                setPickedProductId(null);
+              }}
+              style={[styles.modeChip, itemMode === mode && styles.modeChipActive]}
             >
               <Text
-                style={[
-                  styles.categoryText,
-                  category === option.value && styles.categoryTextActive,
-                ]}
+                style={[styles.modeChipText, itemMode === mode && styles.modeChipTextActive]}
               >
-                {option.label}
+                {mode === "CATALOG" ? "Desde catálogo" : "Libre"}
               </Text>
             </Pressable>
           ))}
         </View>
+
+        {itemMode === "CATALOG" ? (
+          <>
+            {productsQuery.isLoading ? (
+              <Text style={styles.help}>Cargando catálogo…</Text>
+            ) : (productsQuery.data ?? []).length === 0 ? (
+              <View style={styles.emptyCatalog}>
+                <Text style={styles.help}>
+                  No tenés productos en el catálogo todavía.
+                </Text>
+                <Button
+                  onPress={() => router.push("/products")}
+                  size="small"
+                  title="Crear productos"
+                  variant="secondary"
+                />
+              </View>
+            ) : (
+              <View style={styles.choiceList}>
+                {(productsQuery.data ?? []).map((product) => (
+                  <ProductChoice
+                    key={product.id}
+                    onPress={() => setPickedProductId(product.id)}
+                    product={product}
+                    selected={pickedProductId === product.id}
+                  />
+                ))}
+              </View>
+            )}
+          </>
+        ) : (
+          <>
+            <Input label="Nombre" onChangeText={setItemName} value={itemName} />
+            <Input
+              keyboardType="decimal-pad"
+              label="Precio"
+              onChangeText={setPrice}
+              value={price}
+            />
+
+            <Text style={styles.label}>Categoría</Text>
+            <View style={styles.categoryRow}>
+              {CATEGORIES.map((option) => (
+                <Pressable
+                  key={option.value}
+                  onPress={() => setCategory(option.value)}
+                  style={[
+                    styles.categoryOption,
+                    category === option.value && styles.categoryActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      category === option.value && styles.categoryTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
 
         <Input
           keyboardType="number-pad"
@@ -387,13 +452,6 @@ export default function MenuCreateScreen() {
           onChangeText={setRemainingStock}
           placeholder="Opcional"
           value={remainingStock}
-        />
-        <Input
-          autoCapitalize="none"
-          label="Foto URL"
-          onChangeText={setPhotoUrl}
-          placeholder="Opcional"
-          value={photoUrl}
         />
 
         {scope === "GLOBAL" && selectedCompanies.length > 0 && (
@@ -416,16 +474,15 @@ export default function MenuCreateScreen() {
           </>
         )}
 
-        {isEditing && (
-          <Button
-            icon={Plus}
-            loading={addItemMutation.isPending}
-            onPress={() => addItemMutation.mutate()}
-            title="Agregar al menú"
-            variant="secondary"
-          />
-        )}
+        <Button
+          icon={Plus}
+          loading={addItemMutation.isPending}
+          onPress={() => addItemMutation.mutate()}
+          title="Agregar al menú"
+          variant="secondary"
+        />
       </Card>
+      )}
 
       {isEditing && menu && menu.status === "DRAFT" ? (
         <Button
@@ -470,6 +527,30 @@ function CompanyChoice({
       </View>
       {selected && <Check color={colors.brandRed} size={19} strokeWidth={2.5} />}
       {!multiple && selected ? null : null}
+    </Pressable>
+  );
+}
+
+function ProductChoice({
+  product,
+  onPress,
+  selected,
+}: {
+  product: Product;
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable onPress={onPress} style={[styles.choice, selected && styles.choiceSelected]}>
+      <View style={styles.choiceTextBlock}>
+        <Text style={[styles.choiceTitle, selected && styles.choiceTitleSelected]}>
+          {product.name}
+        </Text>
+        <Text style={styles.choiceMeta}>
+          ${product.price.toLocaleString("es-AR")} · {product.category}
+        </Text>
+      </View>
+      {selected && <Check color={colors.brandRed} size={19} strokeWidth={2.5} />}
     </Pressable>
   );
 }
@@ -645,5 +726,34 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     color: colors.onBrand,
+  },
+  modeToggle: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.pill,
+    flexDirection: "row",
+    padding: 4,
+  },
+  modeChip: {
+    alignItems: "center",
+    borderRadius: radius.pill,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 36,
+  },
+  modeChipActive: {
+    backgroundColor: colors.brandRed,
+  },
+  modeChipText: {
+    ...typography.captionStrong,
+    color: colors.muted,
+  },
+  modeChipTextActive: {
+    color: colors.onBrand,
+  },
+  emptyCatalog: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.md,
+    gap: spacing.sm,
+    padding: spacing.md,
   },
 });

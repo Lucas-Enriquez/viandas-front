@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from "react"; // useState kept for deletingMenuId
 import {
   Alert,
   Image,
@@ -20,9 +20,11 @@ import {
   Globe2,
   ImageOff,
   MessageCircle,
+  Pencil,
   Plus,
   RefreshCw,
   Send,
+  Trash2,
   Utensils,
 } from "lucide-react-native";
 
@@ -31,23 +33,24 @@ import { menusApi } from "../../src/api/menus";
 import { useAuth } from "../../src/auth/AuthContext";
 import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
+import { DangerConfirmModal } from "../../src/components/DangerConfirmModal";
 import { Hero } from "../../src/components/Hero";
 import { Skeleton } from "../../src/components/Skeleton";
 import { EmptyState, ErrorState } from "../../src/components/StateViews";
 import { StatusPill } from "../../src/components/StatusPill";
 import { useToast } from "../../src/providers/ToastProvider";
 import { colors, radius, shadows, spacing, typography } from "../../src/theme";
-import type { MenuResponse, MenuScope } from "../../src/types";
+import type { MenuResponse } from "../../src/types";
 import { formatMenuDate, todayYmd } from "../../src/utils/date";
 import { formatMoney } from "../../src/utils/format";
 
 export default function MenusScreen() {
-  const [scope, setScope] = useState<MenuScope>("GLOBAL");
   const date = todayYmd();
   const queryClient = useQueryClient();
   const { session } = useAuth();
   const toast = useToast();
   const firstName = session?.user.name?.split(" ")[0] ?? "Cocina";
+  const [deletingMenuId, setDeletingMenuId] = useState<string | null>(null);
 
   const menusQuery = useQuery({
     queryFn: () => menusApi.list({ date }),
@@ -106,6 +109,22 @@ export default function MenusScreen() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (menuId: string) => menusApi.delete(menuId),
+    onError: (error) => {
+      toast.show({
+        title: "No pudimos eliminar el menú",
+        message: getApiErrorMessage(error),
+        tone: "error",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["menus"] });
+      setDeletingMenuId(null);
+      toast.show({ title: "Menú eliminado", tone: "success" });
+    },
+  });
+
   if (menusQuery.isError) {
     return (
       <ErrorState
@@ -118,9 +137,7 @@ export default function MenusScreen() {
     );
   }
 
-  const menus = dedupeMenusByScopeAndId(
-    (menusQuery.data ?? []).filter((menu) => menu.scope === scope),
-  );
+  const menus = dedupeMenusByScopeAndId(menusQuery.data ?? []);
 
   const totalItems = menus.reduce((sum, m) => sum + m.items.length, 0);
   const publishedCount = menus.filter((m) => m.status === "PUBLISHED").length;
@@ -131,13 +148,7 @@ export default function MenusScreen() {
         eyebrow={formatMenuDate(date)}
         title={`Buen día, ${firstName}`}
         subtitle="¿Arrancamos con el menú del día?"
-      >
-        <View style={styles.statsRow}>
-          <StatChip label={String(menus.length)} caption={menus.length === 1 ? "menú" : "menús"} />
-          <StatChip label={String(totalItems)} caption="items" />
-          <StatChip label={String(publishedCount)} caption="publicados" />
-        </View>
-      </Hero>
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -151,44 +162,34 @@ export default function MenusScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.segmented}>
-          {(["GLOBAL", "COMPANY"] as MenuScope[]).map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => setScope(option)}
-              style={[styles.segment, scope === option && styles.segmentActive]}
-            >
-              <Text style={[styles.segmentText, scope === option && styles.segmentTextActive]}>
-                {option === "GLOBAL" ? "Global" : "Por empresa"}
-              </Text>
-            </Pressable>
-          ))}
+        <View style={styles.statsRow}>
+          <StatChip label={String(menus.length)} caption={menus.length === 1 ? "menú" : "menús"} />
+          <StatChip label={String(totalItems)} caption="items" />
+          <StatChip label={String(publishedCount)} caption="publicados" />
         </View>
 
-        {scope === "GLOBAL" && (
-          <Pressable
-            disabled={cloneMutation.isPending}
-            onPress={() => cloneMutation.mutate()}
-            style={({ pressed }) => [styles.primaryAction, pressed && styles.actionPressed]}
-          >
-            <View style={styles.primaryActionIcon}>
-              <Copy color={colors.onBrand} size={26} strokeWidth={2.4} />
-            </View>
-            <View style={styles.primaryActionCopy}>
-              <Text style={styles.primaryActionTitle}>Clonar menú de ayer</Text>
-              <Text style={styles.primaryActionMeta}>
-                Empezá con la misma base y ajustá precios o stock.
-              </Text>
-            </View>
-            <ChevronRight color={colors.onBrand} size={20} strokeWidth={2.4} />
-          </Pressable>
-        )}
+        <Pressable
+          disabled={cloneMutation.isPending}
+          onPress={() => cloneMutation.mutate()}
+          style={({ pressed }) => [styles.primaryAction, pressed && styles.actionPressed]}
+        >
+          <View style={styles.primaryActionIcon}>
+            <Copy color={colors.onBrand} size={26} strokeWidth={2.4} />
+          </View>
+          <View style={styles.primaryActionCopy}>
+            <Text style={styles.primaryActionTitle}>Clonar menú de ayer</Text>
+            <Text style={styles.primaryActionMeta}>
+              Empezá con la misma base y ajustá precios o stock.
+            </Text>
+          </View>
+          <ChevronRight color={colors.onBrand} size={20} strokeWidth={2.4} />
+        </Pressable>
 
         <View style={styles.actionGrid}>
           <ActionTile
             icon={Plus}
-            onPress={() => router.push({ pathname: "/menu-create", params: { scope } })}
-            subtitle={scope === "GLOBAL" ? "Empezá vacío" : "Por empresa"}
+            onPress={() => router.push({ pathname: "/menu-create", params: { scope: "GLOBAL" } })}
+            subtitle="Menú vacío"
             title="Crear menú"
           />
           <ActionTile
@@ -220,11 +221,7 @@ export default function MenusScreen() {
         ) : menus.length === 0 ? (
           <EmptyState
             icon={Utensils}
-            message={
-              scope === "GLOBAL"
-                ? "No hay menús globales para hoy."
-                : "No hay menús por empresa para hoy."
-            }
+            message="No creaste ningún menú para hoy todavía."
             title="Sin menús"
           />
         ) : (
@@ -233,6 +230,8 @@ export default function MenusScreen() {
               <MenuCard
                 key={`${menu.scope}-${menu.id}`}
                 menu={menu}
+                onDelete={() => setDeletingMenuId(menu.id)}
+                onEdit={() => router.push({ pathname: "/menu-create", params: { id: menu.id } })}
                 onPublish={() => publishMutation.mutate(menu.id)}
                 onShare={() => shareMutation.mutate(menu.id)}
                 publishing={publishMutation.isPending}
@@ -241,6 +240,19 @@ export default function MenusScreen() {
           </View>
         )}
       </ScrollView>
+
+      <DangerConfirmModal
+        bullets={["Items del menú", "Pedidos asociados"]}
+        description="Esta acción es permanente. Se va a borrar el menú y todo lo que contiene."
+        destructiveLabel="Eliminar menú"
+        loading={deleteMutation.isPending}
+        onCancel={() => setDeletingMenuId(null)}
+        onConfirm={() => {
+          if (deletingMenuId) deleteMutation.mutate(deletingMenuId);
+        }}
+        title="¿Eliminar este menú?"
+        visible={deletingMenuId !== null}
+      />
     </View>
   );
 }
@@ -281,11 +293,15 @@ function ActionTile({
 
 function MenuCard({
   menu,
+  onDelete,
+  onEdit,
   onPublish,
   onShare,
   publishing,
 }: {
   menu: MenuResponse;
+  onDelete: () => void;
+  onEdit: () => void;
   onPublish: () => void;
   onShare: () => void;
   publishing: boolean;
@@ -339,13 +355,22 @@ function MenuCard({
 
       <View style={styles.cardActions}>
         {menu.status === "DRAFT" ? (
-          <Button
-            icon={Send}
-            loading={publishing}
-            onPress={onPublish}
-            size="small"
-            title="Publicar"
-          />
+          <>
+            <Button
+              icon={Pencil}
+              onPress={onEdit}
+              size="small"
+              title="Editar"
+              variant="secondary"
+            />
+            <Button
+              icon={Send}
+              loading={publishing}
+              onPress={onPublish}
+              size="small"
+              title="Publicar"
+            />
+          </>
         ) : (
           <Button
             icon={MessageCircle}
@@ -355,6 +380,13 @@ function MenuCard({
             variant="secondary"
           />
         )}
+        <Pressable
+          hitSlop={8}
+          onPress={onDelete}
+          style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
+        >
+          <Trash2 color={colors.muted} size={18} strokeWidth={2.4} />
+        </Pressable>
       </View>
     </Card>
   );
@@ -406,48 +438,25 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   statChip: {
-    backgroundColor: "rgba(255,255,255,0.18)",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: radius.lg,
+    borderWidth: 1,
     flex: 1,
     gap: 2,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   statValue: {
-    color: colors.onBrand,
+    color: colors.ink,
     fontSize: 22,
     fontWeight: "800",
     letterSpacing: -0.3,
   },
   statCaption: {
-    color: "rgba(255,255,255,0.85)",
+    color: colors.muted,
     fontSize: 12,
     fontWeight: "600",
-  },
-  segmented: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    flexDirection: "row",
-    padding: 4,
-  },
-  segment: {
-    alignItems: "center",
-    borderRadius: radius.pill,
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 40,
-  },
-  segmentActive: {
-    backgroundColor: colors.brandRed,
-  },
-  segmentText: {
-    ...typography.captionStrong,
-    color: colors.muted,
-  },
-  segmentTextActive: {
-    color: colors.onBrand,
   },
   primaryAction: {
     alignItems: "center",
@@ -599,5 +608,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: spacing.xs,
+  },
+  deleteButton: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.sm,
+    height: 36,
+    justifyContent: "center",
+    marginLeft: "auto",
+    width: 36,
+  },
+  deleteButtonPressed: {
+    backgroundColor: colors.redSoft,
+    opacity: 0.8,
   },
 });

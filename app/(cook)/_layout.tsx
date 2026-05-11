@@ -1,7 +1,7 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
 import {
-  Building2,
+  ChefHat,
   ClipboardList,
   MenuSquare,
   Truck,
@@ -11,8 +11,6 @@ import {
 import { useAuth } from "../../src/auth/AuthContext";
 import { LoadingState } from "../../src/components/StateViews";
 import { colors } from "../../src/theme";
-
-const logoSource = require("../../assets/logo.png");
 
 export default function CookLayout() {
   const { isLoading, session } = useAuth();
@@ -33,17 +31,7 @@ export default function CookLayout() {
     <Tabs
       initialRouteName="menus"
       screenOptions={{
-        headerShadowVisible: false,
-        headerStyle: { backgroundColor: colors.background },
-        headerTitle: () => (
-          <Image
-            accessibilityLabel="Caseritas"
-            resizeMode="contain"
-            source={logoSource}
-            style={styles.headerLogo}
-          />
-        ),
-        headerTitleAlign: "center",
+        headerShown: false,
         sceneStyle: { backgroundColor: colors.background },
         tabBarActiveTintColor: colors.brandRed,
         tabBarInactiveTintColor: colors.muted,
@@ -61,24 +49,22 @@ export default function CookLayout() {
       <Tabs.Screen
         name="menus"
         options={{
-          headerShown: false,
           tabBarIcon: ({ color }) => <MenuSquare color={color} size={22} strokeWidth={2.4} />,
           title: "Menús",
         }}
       />
 
       <Tabs.Screen
-        name="companies"
+        name="products"
         options={{
-          headerShown: false,
-          tabBarIcon: ({ color }) => <Building2 color={color} size={22} strokeWidth={2.4} />,
-          title: "Empresas",
+          tabBarIcon: ({ color }) => <ChefHat color={color} size={22} strokeWidth={2.4} />,
+          title: "Productos",
         }}
       />
+      <Tabs.Screen name="companies" options={{ href: null }} />
       <Tabs.Screen
         name="delivery"
         options={{
-          headerShown: false,
           tabBarButton: (props) => (
             <Pressable
               accessibilityLabel={props.accessibilityLabel}
@@ -103,7 +89,6 @@ export default function CookLayout() {
       <Tabs.Screen
         name="orders"
         options={{
-          headerShown: false,
           tabBarIcon: ({ color }) => <ClipboardList color={color} size={22} strokeWidth={2.4} />,
           title: "Pedidos",
         }}
@@ -111,7 +96,6 @@ export default function CookLayout() {
       <Tabs.Screen
         name="cuenta"
         options={{
-          headerShown: false,
           tabBarIcon: ({ color }) => <UserRound color={color} size={22} strokeWidth={2.4} />,
           title: "Cuenta",
         }}
@@ -122,10 +106,6 @@ export default function CookLayout() {
 }
 
 const styles = StyleSheet.create({
-  headerLogo: {
-    height: 48,
-    width: 130,
-  },
   tabLabel: {
     fontSize: 10,
     fontWeight: "700",

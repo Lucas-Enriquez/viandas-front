@@ -19,14 +19,25 @@ type CreateMenuBody = {
   scope?: MenuScope;
 };
 
-type AddMenuItemBody = {
+type AddMenuItemCommon = {
   availableCompanyIds?: string[];
-  category: MenuItemCategory;
-  name: string;
-  photoUrl?: string;
-  price: number;
   remainingStock?: number;
 };
+
+/** Item agregado desde el inventario (catálogo) — el backend snapshotea name/price/etc del Product. */
+export type AddMenuItemFromCatalogBody = AddMenuItemCommon & {
+  productId: string;
+};
+
+/** Item libre — name/price/category obligatorios, photoPublicId opcional. */
+export type AddMenuItemFreeFormBody = AddMenuItemCommon & {
+  name: string;
+  price: number;
+  category: MenuItemCategory;
+  photoPublicId?: string;
+};
+
+export type AddMenuItemBody = AddMenuItemFromCatalogBody | AddMenuItemFreeFormBody;
 
 type CloneMenuBody = {
   date: string;
@@ -80,5 +91,9 @@ export const menusApi = {
       body: JSON.stringify(body),
       method: "POST",
     });
+  },
+
+  delete(menuId: string) {
+    return apiFetch<void>(`/menus/${menuId}`, { method: "DELETE" });
   },
 };

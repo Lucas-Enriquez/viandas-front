@@ -192,3 +192,31 @@ export type GlobalInvitationResponse = {
   expiresAt: string;
   link: string;
 };
+
+export type Product = {
+  id: UUID;
+  name: string;
+  price: number;
+  category: MenuItemCategory;
+  photoUrl: string | null;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProductRequest = {
+  name: string;
+  price: number;
+  category: MenuItemCategory;
+  photoPublicId?: string | null;
+  description?: string | null;
+};
+
+export type UploadSignatureResponse = {
+  cloudName: string;
+  apiKey: string;
+  timestamp: number;
+  folder: string;
+  signature: string;
+  uploadUrl: string;
+};
