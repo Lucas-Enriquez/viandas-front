@@ -26,6 +26,24 @@ npm run web
 npm run typecheck
 ```
 
+## Rebuild nativo
+
+Necesario cuando se agrega un nuevo módulo nativo (ej: `expo-blur`, `expo-location`, etc.). Expo Go no soporta módulos nativos custom.
+
+**Emulador o simulador:**
+```bash
+npx expo run:android
+npx expo run:ios        # solo en Mac
+```
+
+**Device físico (vía EAS, compila en la nube):**
+```bash
+eas build --profile development --platform android
+eas build --profile development --platform ios
+```
+
+Instalás el APK/IPA generado en el device y lo usás en lugar de Expo Go.
+
 ## Background location
 
 El tracking usa `expo-location` y `expo-task-manager`. Para validar ubicación en segundo plano necesitás un development build o build de producción en dispositivo físico; Expo Go no cubre todas las capacidades nativas de background location.

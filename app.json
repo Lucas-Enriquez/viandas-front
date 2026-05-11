@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "caseritas",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "plugins": [
       "expo-router",
       "expo-secure-store",

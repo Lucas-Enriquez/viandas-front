@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import {
@@ -8,6 +8,7 @@ import {
   ImageOff,
   Plus,
   Send,
+  Trash2,
   Utensils,
 } from "lucide-react-native";
 
@@ -34,6 +35,13 @@ const CATEGORIES: Array<{ label: string; value: MenuItemCategory }> = [
   { label: "Ensalada", value: "ENSALADA" },
 ];
 
+const CATEGORY_TABS: Array<{ label: string; value: MenuItemCategory | "ALL" }> = [
+  { label: "Todos", value: "ALL" },
+  { label: "Plato", value: "PLATO" },
+  { label: "Minuta", value: "MINUTA" },
+  { label: "Ensalada", value: "ENSALADA" },
+];
+
 export default function MenuCreateScreen() {
   const params = useLocalSearchParams<{ id?: string; scope?: MenuScope }>();
   const editingId = params.id;
@@ -48,7 +56,13 @@ export default function MenuCreateScreen() {
   const [date, setDate] = useState(() => ymdToDate(todayYmd()));
   const [orderClosesAt, setOrderClosesAt] = useState(() => timeToDate("11:30:00"));
   const [itemMode, setItemMode] = useState<"CATALOG" | "FREE">("CATALOG");
-  const [pickedProductId, setPickedProductId] = useState<string | null>(null);
+
+  // Multi-select catalog state
+  const [pickedProductIds, setPickedProductIds] = useState<string[]>([]);
+  const [pickedStocks, setPickedStocks] = useState<Record<string, string>>({});
+  const [filterCategory, setFilterCategory] = useState<MenuItemCategory | "ALL">("ALL");
+
+  // Free-form item state
   const [itemName, setItemName] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState<MenuItemCategory>("PLATO");
@@ -69,9 +83,20 @@ export default function MenuCreateScreen() {
     enabled: isEditing,
     queryFn: () => menusApi.get(editingId!),
     queryKey: ["menu", editingId],
+    refetchOnMount: "always",
+    staleTime: 0,
+  });
+
+  const menuItemsQuery = useQuery({
+    enabled: isEditing,
+    queryFn: () => menusApi.listItems(editingId!),
+    queryKey: ["menu-items", editingId],
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
   const menu = menuQuery.data;
+
 
   useEffect(() => {
     if (!menu) return;
@@ -87,8 +112,24 @@ export default function MenuCreateScreen() {
     [companies, selectedCompanyIds],
   );
 
+
+  // Products filtered by the active category tab.
+  const filteredProducts = useMemo(() => {
+    const products = productsQuery.data ?? [];
+    if (filterCategory === "ALL") return products;
+    return products.filter((p) => p.category === filterCategory);
+  }, [productsQuery.data, filterCategory]);
+
+  // normalizedName → menuItemId, para detectar qué productos ya están y poder borrarlos
+  const menuItemByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of menuItemsQuery.data ?? []) {
+      map.set(normalizeName(item.name), item.id);
+    }
+    return map;
+  }, [menuItemsQuery.data]);
+
   // Auto-select all companies on first GLOBAL mount (when not editing).
-  // Editing inherits selection from the menu itself via the `menu` effect above.
   const didAutoSelectRef = useRef(false);
   useEffect(() => {
     if (
@@ -111,16 +152,21 @@ export default function MenuCreateScreen() {
   const addItemMutation = useMutation({
     mutationFn: async () => {
       if (!editingId) throw new Error("Menú no disponible.");
-      const parsedStock = remainingStock.trim() ? parseNumber(remainingStock) : undefined;
       const availableCompanyIds = scope === "GLOBAL" ? itemCompanyIds : undefined;
 
       if (itemMode === "CATALOG") {
-        if (!pickedProductId) throw new Error("Elegí un producto del catálogo.");
-        await menusApi.addItem(editingId, {
-          productId: pickedProductId,
-          remainingStock: parsedStock,
-          availableCompanyIds,
-        });
+        if (pickedProductIds.length === 0) throw new Error("Elegí al menos un producto del catálogo.");
+        await Promise.all(
+          pickedProductIds.map((productId) => {
+            const rawStock = pickedStocks[productId]?.trim();
+            const parsedStock = rawStock ? parseNumber(rawStock) : undefined;
+            return menusApi.addItem(editingId, {
+              productId,
+              remainingStock: parsedStock,
+              availableCompanyIds,
+            });
+          }),
+        );
         return;
       }
 
@@ -129,6 +175,7 @@ export default function MenuCreateScreen() {
       if (!parsedPrice || parsedPrice <= 0) {
         throw new Error("Ingresá un precio válido.");
       }
+      const parsedStock = remainingStock.trim() ? parseNumber(remainingStock) : undefined;
 
       await menusApi.addItem(editingId, {
         availableCompanyIds,
@@ -148,14 +195,27 @@ export default function MenuCreateScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["menu", editingId] });
+      queryClient.invalidateQueries({ queryKey: ["menu-items", editingId] });
       queryClient.invalidateQueries({ queryKey: ["menus"] });
       toast.show({ title: "Item agregado", tone: "success" });
-      setPickedProductId(null);
+      setPickedProductIds([]);
+      setPickedStocks({});
       setItemName("");
       setPrice("");
       setRemainingStock("");
       setPhotoUrl("");
       setItemCompanyIds([]);
+    },
+  });
+
+  const removeItemMutation = useMutation({
+    mutationFn: (itemId: string) => menusApi.removeItem(editingId!, itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["menu-items", editingId] });
+      toast.show({ title: "Item eliminado", tone: "success" });
+    },
+    onError: (err) => {
+      toast.show({ title: getApiErrorMessage(err), tone: "error" });
     },
   });
 
@@ -209,6 +269,11 @@ export default function MenuCreateScreen() {
 
   const isLoadingInitial = companiesQuery.isLoading || (isEditing && menuQuery.isLoading);
 
+  const addButtonTitle =
+    itemMode === "CATALOG" && pickedProductIds.length > 0
+      ? `Agregar ${pickedProductIds.length} al menú`
+      : "Agregar al menú";
+
   return (
     <View style={styles.root}>
       <Hero
@@ -236,269 +301,330 @@ export default function MenuCreateScreen() {
           </View>
         ) : (
           <>
-      {!isEditing && (
-        <View style={styles.segmented}>
-          {(["COMPANY", "GLOBAL"] as MenuScope[]).map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => {
-                setScope(option);
-                if (option === "GLOBAL") {
-                  setSelectedCompanyIds(companies.map((c) => c.id));
-                } else {
-                  setSelectedCompanyIds([]);
-                }
-                setItemCompanyIds([]);
-              }}
-              style={[styles.segment, scope === option && styles.segmentActive]}
-            >
-              <Text style={[styles.segmentText, scope === option && styles.segmentTextActive]}>
-                {option === "COMPANY" ? "Por empresa" : "Global"}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      <Card style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionHeader}>
-            <CalendarDays color={colors.brandRed} size={22} strokeWidth={2.4} />
-            <Text style={styles.sectionTitle}>Datos del menú</Text>
-          </View>
-          {isEditing && menu && (
-            <StatusPill
-              label={menu.status === "PUBLISHED" ? "Publicado" : "Borrador"}
-              tone={menu.status === "PUBLISHED" ? "success" : "warning"}
-            />
-          )}
-        </View>
-        <DateTimeField label="Fecha" mode="date" onChange={setDate} value={date} />
-        <DateTimeField
-          label="Cierre de pedidos"
-          mode="time"
-          onChange={setOrderClosesAt}
-          value={orderClosesAt}
-        />
-
-        {!isEditing && (
-          <>
-            <View style={styles.labelRow}>
-              <Text style={styles.label}>
-                {scope === "COMPANY" ? "Empresa" : "Empresas incluidas"}
-              </Text>
-              {scope === "GLOBAL" && companies.length > 0 && (
-                <Pressable hitSlop={8} onPress={toggleAllCompanies}>
-                  <Text style={styles.toggleAll}>
-                    {allSelected ? "Quitar todas" : "Seleccionar todas"}
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-            <View style={styles.choiceList}>
-              {companies.map((company) => (
-                <CompanyChoice
-                  company={company}
-                  key={company.id}
-                  multiple={scope === "GLOBAL"}
-                  onPress={() => {
-                    if (scope === "COMPANY") {
-                      setSelectedCompanyIds([company.id]);
+            {!isEditing && (
+              <View style={styles.segmented}>
+                {(["COMPANY", "GLOBAL"] as MenuScope[]).map((option) => (
+                  <Pressable
+                    key={option}
+                    onPress={() => {
+                      setScope(option);
+                      if (option === "GLOBAL") {
+                        setSelectedCompanyIds(companies.map((c) => c.id));
+                      } else {
+                        setSelectedCompanyIds([]);
+                      }
                       setItemCompanyIds([]);
-                      return;
-                    }
-                    setSelectedCompanyIds((current) => toggleValue(current, company.id));
-                  }}
-                  selected={selectedCompanyIds.includes(company.id)}
-                />
-              ))}
-            </View>
-          </>
-        )}
-
-        {isEditing && menu && (
-          <Text style={styles.help}>
-            {menu.scope === "GLOBAL"
-              ? `${menu.companies.length} empresas asignadas`
-              : menu.companyName ?? "Sin empresa"}
-          </Text>
-        )}
-      </Card>
-
-      {isEditing && menu && menu.items.length > 0 && (
-        <Card style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Utensils color={colors.brandRed} size={22} strokeWidth={2.4} />
-            <Text style={styles.sectionTitle}>Items del menú ({menu.items.length})</Text>
-          </View>
-          <View style={styles.itemList}>
-            {menu.items.map((item) => (
-              <View key={item.id} style={styles.itemRow}>
-                {item.photoUrl ? (
-                  <Image source={{ uri: item.photoUrl }} style={styles.itemImage} />
-                ) : (
-                  <View style={styles.itemImageFallback}>
-                    <ImageOff color={colors.muted} size={18} strokeWidth={2.4} />
-                  </View>
-                )}
-                <View style={styles.itemBody}>
-                  <Text numberOfLines={1} style={styles.itemName}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.itemMeta}>
-                    {formatMoney(item.price)} · {item.category}
-                    {item.remainingStock !== null ? ` · stock ${item.remainingStock}` : ""}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </Card>
-      )}
-
-      {isEditing && (
-      <Card style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Plus color={colors.brandRed} size={22} strokeWidth={2.4} />
-          <Text style={styles.sectionTitle}>Agregar item</Text>
-        </View>
-
-        <View style={styles.modeToggle}>
-          {(["CATALOG", "FREE"] as const).map((mode) => (
-            <Pressable
-              key={mode}
-              onPress={() => {
-                setItemMode(mode);
-                setPickedProductId(null);
-              }}
-              style={[styles.modeChip, itemMode === mode && styles.modeChipActive]}
-            >
-              <Text
-                style={[styles.modeChipText, itemMode === mode && styles.modeChipTextActive]}
-              >
-                {mode === "CATALOG" ? "Desde catálogo" : "Libre"}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {itemMode === "CATALOG" ? (
-          <>
-            {productsQuery.isLoading ? (
-              <Text style={styles.help}>Cargando catálogo…</Text>
-            ) : (productsQuery.data ?? []).length === 0 ? (
-              <View style={styles.emptyCatalog}>
-                <Text style={styles.help}>
-                  No tenés productos en el catálogo todavía.
-                </Text>
-                <Button
-                  onPress={() => router.push("/products")}
-                  size="small"
-                  title="Crear productos"
-                  variant="secondary"
-                />
-              </View>
-            ) : (
-              <View style={styles.choiceList}>
-                {(productsQuery.data ?? []).map((product) => (
-                  <ProductChoice
-                    key={product.id}
-                    onPress={() => setPickedProductId(product.id)}
-                    product={product}
-                    selected={pickedProductId === product.id}
-                  />
+                    }}
+                    style={[styles.segment, scope === option && styles.segmentActive]}
+                  >
+                    <Text style={[styles.segmentText, scope === option && styles.segmentTextActive]}>
+                      {option === "COMPANY" ? "Por empresa" : "Global"}
+                    </Text>
+                  </Pressable>
                 ))}
               </View>
             )}
-          </>
-        ) : (
-          <>
-            <Input label="Nombre" onChangeText={setItemName} value={itemName} />
-            <Input
-              keyboardType="decimal-pad"
-              label="Precio"
-              onChangeText={setPrice}
-              value={price}
-            />
 
-            <Text style={styles.label}>Categoría</Text>
-            <View style={styles.categoryRow}>
-              {CATEGORIES.map((option) => (
-                <Pressable
-                  key={option.value}
-                  onPress={() => setCategory(option.value)}
-                  style={[
-                    styles.categoryOption,
-                    category === option.value && styles.categoryActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.categoryText,
-                      category === option.value && styles.categoryTextActive,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        )}
+            <Card style={styles.section}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionHeader}>
+                  <CalendarDays color={colors.brandRed} size={22} strokeWidth={2.4} />
+                  <Text style={styles.sectionTitle}>Datos del menú</Text>
+                </View>
+                {isEditing && menu && (
+                  <StatusPill
+                    label={menu.status === "PUBLISHED" ? "Publicado" : "Borrador"}
+                    tone={menu.status === "PUBLISHED" ? "success" : "warning"}
+                  />
+                )}
+              </View>
+              <DateTimeField label="Fecha" mode="date" onChange={setDate} value={date} />
+              <DateTimeField
+                label="Cierre de pedidos"
+                mode="time"
+                onChange={setOrderClosesAt}
+                value={orderClosesAt}
+              />
 
-        <Input
-          keyboardType="number-pad"
-          label="Stock"
-          onChangeText={setRemainingStock}
-          placeholder="Opcional"
-          value={remainingStock}
-        />
+              {!isEditing && (
+                <>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>
+                      {scope === "COMPANY" ? "Empresa" : "Empresas incluidas"}
+                    </Text>
+                    {scope === "GLOBAL" && companies.length > 0 && (
+                      <Pressable hitSlop={8} onPress={toggleAllCompanies}>
+                        <Text style={styles.toggleAll}>
+                          {allSelected ? "Quitar todas" : "Seleccionar todas"}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
+                  <View style={styles.choiceList}>
+                    {companies.map((company) => (
+                      <CompanyChoice
+                        company={company}
+                        key={company.id}
+                        multiple={scope === "GLOBAL"}
+                        onPress={() => {
+                          if (scope === "COMPANY") {
+                            setSelectedCompanyIds([company.id]);
+                            setItemCompanyIds([]);
+                            return;
+                          }
+                          setSelectedCompanyIds((current) => toggleValue(current, company.id));
+                        }}
+                        selected={selectedCompanyIds.includes(company.id)}
+                      />
+                    ))}
+                  </View>
+                </>
+              )}
 
-        {scope === "GLOBAL" && selectedCompanies.length > 0 && (
-          <>
-            <Text style={styles.label}>Disponible para</Text>
-            <Text style={styles.help}>
-              Si no elegís empresas, el item aplica a todas las empresas del menú.
-            </Text>
-            <View style={styles.choiceList}>
-              {selectedCompanies.map((company) => (
-                <CompanyChoice
-                  company={company}
-                  key={company.id}
-                  multiple
-                  onPress={() => setItemCompanyIds((current) => toggleValue(current, company.id))}
-                  selected={itemCompanyIds.includes(company.id)}
+              {isEditing && menu && (
+                <Text style={styles.help}>
+                  {menu.scope === "GLOBAL"
+                    ? `${menu.companies.length} empresas asignadas`
+                    : menu.companyName ?? "Sin empresa"}
+                </Text>
+              )}
+            </Card>
+
+            {isEditing && menu && menu.items.length > 0 && (
+              <Card style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Utensils color={colors.brandRed} size={22} strokeWidth={2.4} />
+                  <Text style={styles.sectionTitle}>Items del menú ({menu.items.length})</Text>
+                </View>
+                <View style={styles.itemList}>
+                  {menu.items.map((item) => (
+                    <View key={item.id} style={styles.itemRow}>
+                      {item.photoUrl ? (
+                        <Image source={{ uri: item.photoUrl }} style={styles.itemImage} />
+                      ) : (
+                        <View style={styles.itemImageFallback}>
+                          <ImageOff color={colors.muted} size={18} strokeWidth={2.4} />
+                        </View>
+                      )}
+                      <View style={styles.itemBody}>
+                        <Text numberOfLines={1} style={styles.itemName}>
+                          {item.name}
+                        </Text>
+                        <Text style={styles.itemMeta}>
+                          {formatMoney(item.price)} · {item.category}
+                          {item.remainingStock !== null ? ` · stock ${item.remainingStock}` : ""}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            )}
+
+            {isEditing && (
+              <Card style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Plus color={colors.brandRed} size={22} strokeWidth={2.4} />
+                  <Text style={styles.sectionTitle}>Agregar item</Text>
+                </View>
+
+                <View style={styles.modeToggle}>
+                  {(["CATALOG", "FREE"] as const).map((mode) => (
+                    <Pressable
+                      key={mode}
+                      onPress={() => {
+                        setItemMode(mode);
+                        setPickedProductIds([]);
+                        setPickedStocks({});
+                      }}
+                      style={[styles.modeChip, itemMode === mode && styles.modeChipActive]}
+                    >
+                      <Text
+                        style={[styles.modeChipText, itemMode === mode && styles.modeChipTextActive]}
+                      >
+                        {mode === "CATALOG" ? "Desde catálogo" : "Libre"}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {itemMode === "CATALOG" ? (
+                  <>
+                    {productsQuery.isLoading ? (
+                      <Text style={styles.help}>Cargando catálogo…</Text>
+                    ) : (productsQuery.data ?? []).length === 0 ? (
+                      <View style={styles.emptyCatalog}>
+                        <Text style={styles.help}>
+                          No tenés productos en el catálogo todavía.
+                        </Text>
+                        <Button
+                          onPress={() => router.push("/products")}
+                          size="small"
+                          title="Crear productos"
+                          variant="secondary"
+                        />
+                      </View>
+                    ) : menuItemsQuery.isLoading ? (
+                      <Text style={styles.help}>Cargando…</Text>
+                    ) : (
+                      <>
+                        <ScrollView
+                          contentContainerStyle={styles.categoryTabsContent}
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                        >
+                          {CATEGORY_TABS.map((tab) => (
+                            <Pressable
+                              key={tab.value}
+                              onPress={() => setFilterCategory(tab.value)}
+                              style={[
+                                styles.categoryTab,
+                                filterCategory === tab.value && styles.categoryTabActive,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.categoryTabText,
+                                  filterCategory === tab.value && styles.categoryTabTextActive,
+                                ]}
+                              >
+                                {tab.label}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+
+                        <View style={styles.choiceList}>
+                          {filteredProducts.length === 0 ? (
+                            <Text style={styles.help}>Ningún producto en esta categoría.</Text>
+                          ) : (
+                            filteredProducts.map((product) => {
+                              const menuItemId = menuItemByName.get(normalizeName(product.name));
+                              return (
+                                <ProductChoice
+                                  alreadyInMenu={!!menuItemId}
+                                  key={product.id}
+                                  onRemove={menuItemId ? () => removeItemMutation.mutate(menuItemId) : undefined}
+                                  onSelect={() => {
+                                    const isSelected = pickedProductIds.includes(product.id);
+                                    if (isSelected) {
+                                      setPickedProductIds((curr) =>
+                                        curr.filter((id) => id !== product.id),
+                                      );
+                                      setPickedStocks((curr) => {
+                                        const next = { ...curr };
+                                        delete next[product.id];
+                                        return next;
+                                      });
+                                    } else {
+                                      setPickedProductIds((curr) => [...curr, product.id]);
+                                    }
+                                  }}
+                                  onStockChange={(value) =>
+                                    setPickedStocks((curr) => ({ ...curr, [product.id]: value }))
+                                  }
+                                  product={product}
+                                  removePending={removeItemMutation.isPending}
+                                  selected={pickedProductIds.includes(product.id)}
+                                  stockValue={pickedStocks[product.id] ?? ""}
+                                />
+                              );
+                            })
+                          )}
+                        </View>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Input label="Nombre" onChangeText={setItemName} value={itemName} />
+                    <Input
+                      keyboardType="decimal-pad"
+                      label="Precio"
+                      onChangeText={setPrice}
+                      value={price}
+                    />
+
+                    <Text style={styles.label}>Categoría</Text>
+                    <View style={styles.categoryRow}>
+                      {CATEGORIES.map((option) => (
+                        <Pressable
+                          key={option.value}
+                          onPress={() => setCategory(option.value)}
+                          style={[
+                            styles.categoryOption,
+                            category === option.value && styles.categoryActive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.categoryText,
+                              category === option.value && styles.categoryTextActive,
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    <Input
+                      keyboardType="number-pad"
+                      label="Stock"
+                      onChangeText={setRemainingStock}
+                      placeholder="Opcional"
+                      value={remainingStock}
+                    />
+                  </>
+                )}
+
+                {scope === "GLOBAL" && selectedCompanies.length > 0 && (
+                  <>
+                    <Text style={styles.label}>Disponible para</Text>
+                    <Text style={styles.help}>
+                      Si no elegís empresas, el item aplica a todas las empresas del menú.
+                    </Text>
+                    <View style={styles.choiceList}>
+                      {selectedCompanies.map((company) => (
+                        <CompanyChoice
+                          company={company}
+                          key={company.id}
+                          multiple
+                          onPress={() =>
+                            setItemCompanyIds((current) => toggleValue(current, company.id))
+                          }
+                          selected={itemCompanyIds.includes(company.id)}
+                        />
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                <Button
+                  icon={Plus}
+                  loading={addItemMutation.isPending}
+                  onPress={() => addItemMutation.mutate()}
+                  title={addButtonTitle}
+                  variant="secondary"
                 />
-              ))}
-            </View>
-          </>
-        )}
+              </Card>
+            )}
 
-        <Button
-          icon={Plus}
-          loading={addItemMutation.isPending}
-          onPress={() => addItemMutation.mutate()}
-          title="Agregar al menú"
-          variant="secondary"
-        />
-      </Card>
-      )}
-
-      {isEditing && menu && menu.status === "DRAFT" ? (
-        <Button
-          icon={Send}
-          loading={publishMutation.isPending}
-          onPress={() => publishMutation.mutate()}
-          title="Publicar menú"
-        />
-      ) : !isEditing ? (
-        <Button
-          icon={Plus}
-          loading={createMenuMutation.isPending}
-          onPress={() => createMenuMutation.mutate()}
-          title="Crear menú"
-        />
-      ) : null}
+            {isEditing && menu && menu.status === "DRAFT" ? (
+              <Button
+                icon={Send}
+                loading={publishMutation.isPending}
+                onPress={() => publishMutation.mutate()}
+                title="Publicar menú"
+              />
+            ) : !isEditing ? (
+              <Button
+                icon={Plus}
+                loading={createMenuMutation.isPending}
+                onPress={() => createMenuMutation.mutate()}
+                title="Crear menú"
+              />
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -526,32 +652,100 @@ function CompanyChoice({
         {!!company.address && <Text style={styles.choiceMeta}>{company.address}</Text>}
       </View>
       {selected && <Check color={colors.brandRed} size={19} strokeWidth={2.5} />}
-      {!multiple && selected ? null : null}
     </Pressable>
   );
 }
 
 function ProductChoice({
+  alreadyInMenu,
+  onRemove,
+  onSelect,
+  onStockChange,
   product,
-  onPress,
+  removePending,
   selected,
+  stockValue,
 }: {
+  alreadyInMenu: boolean;
+  onRemove?: () => void;
+  onSelect: () => void;
+  onStockChange: (value: string) => void;
   product: Product;
-  onPress: () => void;
+  removePending: boolean;
   selected: boolean;
+  stockValue: string;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.choice, selected && styles.choiceSelected]}>
-      <View style={styles.choiceTextBlock}>
-        <Text style={[styles.choiceTitle, selected && styles.choiceTitleSelected]}>
-          {product.name}
-        </Text>
-        <Text style={styles.choiceMeta}>
-          ${product.price.toLocaleString("es-AR")} · {product.category}
-        </Text>
-      </View>
-      {selected && <Check color={colors.brandRed} size={19} strokeWidth={2.5} />}
-    </Pressable>
+    <View
+      style={[
+        styles.productChoiceOuter,
+        selected && styles.choiceSelected,
+        alreadyInMenu && styles.choiceInMenu,
+      ]}
+    >
+      <Pressable disabled={alreadyInMenu} onPress={onSelect} style={styles.productChoiceRow}>
+        {product.photoUrl ? (
+          <Image
+            resizeMode="cover"
+            source={{ uri: product.photoUrl }}
+            style={styles.productThumb}
+          />
+        ) : (
+          <View style={styles.productThumbFallback}>
+            <ImageOff color={colors.muted} size={16} strokeWidth={2} />
+          </View>
+        )}
+
+        <View style={styles.choiceTextBlock}>
+          <Text
+            style={[
+              styles.choiceTitle,
+              selected && styles.choiceTitleSelected,
+              alreadyInMenu && styles.choiceTitleInMenu,
+            ]}
+          >
+            {product.name}
+          </Text>
+          <Text style={styles.choiceMeta}>
+            {formatMoney(product.price)} · {product.category}
+          </Text>
+        </View>
+
+        {alreadyInMenu ? (
+          <View style={styles.inMenuBadge}>
+            <Text style={styles.inMenuText}>En menú ✓</Text>
+          </View>
+        ) : selected ? (
+          <Check color={colors.brandRed} size={19} strokeWidth={2.5} />
+        ) : null}
+      </Pressable>
+
+      {alreadyInMenu && onRemove && (
+        <Pressable
+          disabled={removePending}
+          onPress={onRemove}
+          style={styles.removeItemRow}
+        >
+          <Trash2 color={colors.brandRed} size={15} strokeWidth={2} />
+          <Text style={styles.removeItemText}>Quitar del menú</Text>
+        </Pressable>
+      )}
+
+      {/* Stock input expands inline when the product is selected */}
+      {selected && (
+        <View style={styles.stockInline}>
+          <Text style={styles.stockLabel}>Stock (opcional)</Text>
+          <TextInput
+            keyboardType="number-pad"
+            onChangeText={onStockChange}
+            placeholder="Sin límite"
+            placeholderTextColor={colors.placeholder}
+            style={styles.stockInput}
+            value={stockValue}
+          />
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -562,6 +756,15 @@ function parseNumber(value: string) {
 
 function toggleValue(values: string[], value: string) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
+}
+
+function normalizeName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 const styles = StyleSheet.create({
@@ -577,6 +780,7 @@ const styles = StyleSheet.create({
   skeletonGroup: {
     gap: spacing.md,
   },
+  // Free-form category selector
   categoryActive: {
     backgroundColor: colors.redSoft,
     borderColor: colors.redBorder,
@@ -602,6 +806,31 @@ const styles = StyleSheet.create({
   categoryTextActive: {
     color: colors.brandRed,
   },
+  // Catalog category filter tabs
+  categoryTabsContent: {
+    gap: spacing.xs,
+    paddingVertical: spacing.xxxs,
+  },
+  categoryTab: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  categoryTabActive: {
+    backgroundColor: colors.redSoft,
+    borderColor: colors.redBorder,
+  },
+  categoryTabText: {
+    ...typography.captionStrong,
+    color: colors.muted,
+  },
+  categoryTabTextActive: {
+    color: colors.brandRed,
+  },
+  // Company choice rows (unchanged shape)
   choice: {
     alignItems: "center",
     backgroundColor: colors.surfaceMuted,
@@ -624,6 +853,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.redSoft,
     borderColor: colors.redBorder,
   },
+  choiceInMenu: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.success,
+  },
   choiceTextBlock: {
     flex: 1,
   },
@@ -633,6 +866,87 @@ const styles = StyleSheet.create({
   },
   choiceTitleSelected: {
     color: colors.brandRed,
+  },
+  choiceTitleInMenu: {
+    color: colors.success,
+  },
+  // Product choice card (column layout to allow expandable stock row)
+  productChoiceOuter: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  productChoiceRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  productThumb: {
+    borderRadius: radius.sm,
+    height: 44,
+    width: 44,
+  },
+  productThumbFallback: {
+    alignItems: "center",
+    backgroundColor: colors.border,
+    borderRadius: radius.sm,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  inMenuBadge: {
+    backgroundColor: colors.success,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  inMenuText: {
+    ...typography.caption,
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  removeItemRow: {
+    alignItems: "center",
+    borderTopColor: colors.successSoft,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+  },
+  removeItemText: {
+    ...typography.caption,
+    color: colors.brandRed,
+    fontSize: 13,
+  },
+  // Inline stock field — appears inside the selected product card
+  stockInline: {
+    alignItems: "center",
+    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+  },
+  stockLabel: {
+    ...typography.caption,
+    color: colors.muted,
+    flex: 1,
+  },
+  stockInput: {
+    ...typography.body,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    color: colors.ink,
+    minWidth: 90,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    textAlign: "right",
   },
   help: {
     ...typography.caption,

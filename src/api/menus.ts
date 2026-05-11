@@ -1,6 +1,7 @@
 import { apiFetch } from "./client";
 import type {
   MenuItemCategory,
+  MenuItemResponse,
   MenuResponse,
   MenuScope,
   ShareMessageResponse,
@@ -91,6 +92,14 @@ export const menusApi = {
       body: JSON.stringify(body),
       method: "POST",
     });
+  },
+
+  listItems(menuId: string) {
+    return apiFetch<MenuItemResponse[]>(`/menus/${menuId}/items`);
+  },
+
+  removeItem(menuId: string, itemId: string) {
+    return apiFetch<void>(`/menus/${menuId}/items/${itemId}`, { method: "DELETE" });
   },
 
   delete(menuId: string) {
