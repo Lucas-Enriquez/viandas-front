@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { ClipboardCheck, Link2, RefreshCw, ShoppingBag } from "lucide-react-native";
+import { ClipboardCheck, RefreshCw, ShoppingBag } from "lucide-react-native";
 
 import { getApiErrorMessage } from "../../src/api/client";
 import { employeeApi } from "../../src/api/employee";
@@ -10,36 +9,19 @@ import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
 import { Hero } from "../../src/components/Hero";
 import { Skeleton } from "../../src/components/Skeleton";
-import { EmptyState, ErrorState } from "../../src/components/StateViews";
+import { ErrorState } from "../../src/components/StateViews";
 import { StatusPill } from "../../src/components/StatusPill";
-import { getStoredGlobalMenuLink } from "../../src/storage";
 import { colors, radius, spacing, typography } from "../../src/theme";
+import { todayYmd } from "../../src/utils/date";
 import { formatMoney } from "../../src/utils/format";
 
 export default function EmployeeOrderScreen() {
-  const [link, setLink] = useState<{ date: string; token: string } | null>(null);
-
-  useEffect(() => {
-    getStoredGlobalMenuLink().then(setLink);
-  }, []);
+  const date = todayYmd();
 
   const orderQuery = useQuery({
-    enabled: !!link,
-    queryFn: () => employeeApi.currentGlobalOrder(link!.date, link!.token),
-    queryKey: ["employee", "current-order", link?.date, link?.token],
+    queryFn: () => employeeApi.currentOrder(date),
+    queryKey: ["employee", "current-order", date],
   });
-
-  if (!link) {
-    return (
-      <EmptyState
-        actionLabel="Abrir link"
-        icon={Link2}
-        message="Abrí primero un menú global para ver tu pedido."
-        onAction={() => router.push("/global-token")}
-        title="Sin menú activo"
-      />
-    );
-  }
 
   if (orderQuery.isError) {
     return (

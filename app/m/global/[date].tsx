@@ -1,35 +1,7 @@
-import { useEffect } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
-
-import { setStoredGlobalMenuLink } from "../../../src/storage";
-import { colors } from "../../../src/theme";
+import { Redirect, useLocalSearchParams } from "expo-router";
 
 export default function GlobalMenuDeepLink() {
-  const { date, t } = useLocalSearchParams<{ date: string; t: string }>();
+  const { date } = useLocalSearchParams<{ date: string }>();
 
-  useEffect(() => {
-    if (!date || !t) {
-      router.replace("/employee-menu");
-      return;
-    }
-    setStoredGlobalMenuLink({ date, token: t }).then(() => {
-      router.replace("/employee-menu");
-    });
-  }, [date, t]);
-
-  return (
-    <View style={styles.root}>
-      <ActivityIndicator color={colors.brandRed} size="large" />
-    </View>
-  );
+  return <Redirect href={{ pathname: "/employee-menu", params: { date } }} />;
 }
-
-const styles = StyleSheet.create({
-  root: {
-    alignItems: "center",
-    backgroundColor: colors.background,
-    flex: 1,
-    justifyContent: "center",
-  },
-});

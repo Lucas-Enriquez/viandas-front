@@ -58,7 +58,6 @@ export default function EmployeeLayout() {
           title: "Cuenta",
         }}
       />
-      <Tabs.Screen name="global-token" options={{ href: null }} />
     </Tabs>
     </View>
   );

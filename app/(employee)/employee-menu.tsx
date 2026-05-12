@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { router } from "expo-router";
-import { ImageOff, Link2, Minus, Plus, RefreshCw, ShoppingBag } from "lucide-react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { ImageOff, Minus, Plus, RefreshCw, ShoppingBag } from "lucide-react-native";
 
 import { employeeApi } from "../../src/api/employee";
 import { getApiErrorMessage } from "../../src/api/client";
@@ -10,44 +10,35 @@ import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
 import { Hero } from "../../src/components/Hero";
 import { Skeleton } from "../../src/components/Skeleton";
-import { EmptyState, ErrorState } from "../../src/components/StateViews";
+import { ErrorState } from "../../src/components/StateViews";
 import { StatusPill } from "../../src/components/StatusPill";
 import { useToast } from "../../src/providers/ToastProvider";
-import { getStoredGlobalMenuLink } from "../../src/storage";
 import { colors, radius, spacing, typography } from "../../src/theme";
 import type { MenuItemResponse } from "../../src/types";
-import { formatMenuDate } from "../../src/utils/date";
+import { formatMenuDate, todayYmd } from "../../src/utils/date";
 import { formatMoney } from "../../src/utils/format";
 
 type ItemDraft = Record<string, number>;
 
 export default function EmployeeMenuScreen() {
-  const [link, setLink] = useState<{ date: string; token: string } | null>(null);
+  const { date: dateParam } = useLocalSearchParams<{ date?: string }>();
+  const date = dateParam ?? todayYmd();
   const [draft, setDraft] = useState<ItemDraft>({});
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  useEffect(() => {
-    getStoredGlobalMenuLink().then(setLink);
-  }, []);
-
   const menuQuery = useQuery({
-    enabled: !!link,
-    queryFn: () => employeeApi.globalMenu(link!.date, link!.token),
-    queryKey: ["employee", "global-menu", link?.date, link?.token],
+    queryFn: () => employeeApi.menu(date),
+    queryKey: ["employee", "menu", date],
   });
 
   const currentOrderQuery = useQuery({
-    enabled: !!link,
-    queryFn: () => employeeApi.currentGlobalOrder(link!.date, link!.token),
-    queryKey: ["employee", "current-order", link?.date, link?.token],
+    queryFn: () => employeeApi.currentOrder(date),
+    queryKey: ["employee", "current-order", date],
   });
 
   const createOrderMutation = useMutation({
     mutationFn: () => {
-      if (!link) {
-        throw new Error("Primero abrí un menú global.");
-      }
       const menu = menuQuery.data;
       if (!menu) {
         throw new Error("Primero cargá un menú.");
@@ -63,7 +54,7 @@ export default function EmployeeMenuScreen() {
       if (items.length === 0) {
         throw new Error("Elegí al menos un item.");
       }
-      return employeeApi.createGlobalOrder(link.date, link.token, { items });
+      return employeeApi.createOrder(date, { items });
     },
     onError: (error) => {
       toast.show({
@@ -95,25 +86,13 @@ export default function EmployeeMenuScreen() {
     );
   }, [draft, menuQuery.data]);
 
-  if (!link) {
-    return (
-      <EmptyState
-        actionLabel="Abrir link"
-        icon={Link2}
-        message="Pegá el token del menú global para ver los platos disponibles."
-        onAction={() => router.push("/global-token")}
-        title="No hay menú abierto"
-      />
-    );
-  }
-
   if (menuQuery.isError) {
     return (
       <ErrorState
-        actionLabel="Cambiar token"
+        actionLabel="Reintentar"
         icon={RefreshCw}
         message={getApiErrorMessage(menuQuery.error)}
-        onAction={() => router.push("/global-token")}
+        onAction={() => menuQuery.refetch()}
         title="No pudimos cargar el menú"
       />
     );
@@ -257,12 +236,6 @@ function ClosedMenuState() {
       <Text style={styles.closedMessage}>
         Volvé mañana para ver los platos disponibles y hacer tu pedido.
       </Text>
-      <Button
-        icon={Link2}
-        onPress={() => router.push("/global-token")}
-        title="Abrir otro link"
-        variant="secondary"
-      />
     </View>
   );
 }

@@ -46,12 +46,6 @@ export default function AccountScreen() {
 
         <Button
           icon={Link2}
-          onPress={() => router.push("/global-token")}
-          title="Abrir menú global"
-          variant="secondary"
-        />
-        <Button
-          icon={Link2}
           onPress={() => router.push("/invitation")}
           title="Aceptar invitación"
           variant="ghost"

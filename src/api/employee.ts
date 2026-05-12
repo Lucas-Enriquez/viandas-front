@@ -10,25 +10,18 @@ type CreateOrderBody = {
 };
 
 export const employeeApi = {
-  globalMenu(date: string, token: string) {
-    return apiFetch<PublicMenuResponse>(
-      `/employee/menus/global/${date}?t=${encodeURIComponent(token)}`,
-    );
+  menu(date: string) {
+    return apiFetch<PublicMenuResponse>(`/employee/menus/${date}`);
   },
 
-  currentGlobalOrder(date: string, token: string) {
-    return apiFetch<CurrentOrderResponse>(
-      `/employee/menus/global/${date}/orders/current?t=${encodeURIComponent(token)}`,
-    );
+  currentOrder(date: string) {
+    return apiFetch<CurrentOrderResponse>(`/employee/menus/${date}/orders/current`);
   },
 
-  createGlobalOrder(date: string, token: string, body: CreateOrderBody) {
-    return apiFetch<OrderResponse>(
-      `/employee/menus/global/${date}/orders?t=${encodeURIComponent(token)}`,
-      {
-        body: JSON.stringify(body),
-        method: "POST",
-      },
-    );
+  createOrder(date: string, body: CreateOrderBody) {
+    return apiFetch<OrderResponse>(`/employee/menus/${date}/orders`, {
+      body: JSON.stringify(body),
+      method: "POST",
+    });
   },
 };

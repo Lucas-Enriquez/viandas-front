@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import { useMutation } from "@tanstack/react-query";
 import { Check, Link2, UserPlus } from "lucide-react-native";
 
@@ -17,14 +17,17 @@ import { colors, radius, spacing, typography } from "../src/theme";
 type InvitationKind = "individual" | "global";
 
 export default function InvitationScreen() {
+  const params = useLocalSearchParams<{ token?: string; kind?: InvitationKind }>();
+  const fromLink = !!params.token;
   const { setAuthenticatedSession } = useAuth();
   const toast = useToast();
-  const [kind, setKind] = useState<InvitationKind>("global");
-  const [token, setToken] = useState("");
+  const [kind, setKind] = useState<InvitationKind>(params.kind ?? "global");
+  const [token, setToken] = useState(params.token ?? "");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [previewText, setPreviewText] = useState<string | null>(null);
+  const autoValidated = useRef(false);
 
   const previewMutation = useMutation({
     mutationFn: async () => {
@@ -33,7 +36,7 @@ export default function InvitationScreen() {
       }
       if (kind === "global") {
         const preview = await invitationsApi.previewGlobal(token.trim());
-        return `${preview.company} · usos ${preview.usedCount}/${preview.maxUses ?? "sin límite"}`;
+        return preview.company;
       }
       const preview = await invitationsApi.previewIndividual(token.trim());
       setEmail(preview.email);
@@ -48,6 +51,14 @@ export default function InvitationScreen() {
     },
     onSuccess: setPreviewText,
   });
+
+  // Si llegamos desde un deep link, validamos el token automáticamente al montar
+  useEffect(() => {
+    if (fromLink && !autoValidated.current) {
+      autoValidated.current = true;
+      previewMutation.mutate();
+    }
+  }, []);
 
   const acceptMutation = useMutation({
     mutationFn: async () => {
@@ -74,11 +85,14 @@ export default function InvitationScreen() {
   });
 
   return (
-    <View style={styles.root}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.root}
+    >
       <Hero
         eyebrow="Invitación"
         onBack={() => router.back()}
-        subtitle="Pegá el token interno de invitación para validar y crear la cuenta."
+        subtitle={fromLink ? "Completá tus datos para crear la cuenta." : "Pegá el token interno de invitación para validar y crear la cuenta."}
         title="Sumate al equipo"
       />
 
@@ -87,34 +101,43 @@ export default function InvitationScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.segmented}>
-          {(["global", "individual"] as InvitationKind[]).map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => setKind(option)}
-              style={[styles.segment, kind === option && styles.segmentActive]}
-            >
-              <Text style={[styles.segmentText, kind === option && styles.segmentTextActive]}>
-                {option === "global" ? "Global" : "Individual"}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        {!fromLink && (
+          <View style={styles.segmented}>
+            {(["global", "individual"] as InvitationKind[]).map((option) => (
+              <Pressable
+                key={option}
+                onPress={() => setKind(option)}
+                style={[styles.segment, kind === option && styles.segmentActive]}
+              >
+                <Text style={[styles.segmentText, kind === option && styles.segmentTextActive]}>
+                  {option === "global" ? "Global" : "Individual"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         <Card style={styles.section}>
-          <Input autoCapitalize="none" label="Token" onChangeText={setToken} value={token} />
-          <Button
-            icon={Link2}
-            loading={previewMutation.isPending}
-            onPress={() => previewMutation.mutate()}
-            title="Validar invitación"
-            variant="secondary"
-          />
+          {!fromLink && (
+            <Input autoCapitalize="none" label="Token" onChangeText={setToken} value={token} />
+          )}
+          {!fromLink && (
+            <Button
+              icon={Link2}
+              loading={previewMutation.isPending}
+              onPress={() => previewMutation.mutate()}
+              title="Validar invitación"
+              variant="secondary"
+            />
+          )}
           {!!previewText && (
             <View style={styles.preview}>
               <Check color={colors.success} size={18} strokeWidth={2.4} />
               <Text style={styles.previewText}>{previewText}</Text>
             </View>
+          )}
+          {fromLink && previewMutation.isPending && (
+            <Text style={styles.validating}>Validando invitación…</Text>
           )}
         </Card>
 
@@ -142,7 +165,7 @@ export default function InvitationScreen() {
           title="Aceptar y entrar"
         />
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -196,5 +219,10 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     color: colors.onBrand,
+  },
+  validating: {
+    ...typography.caption,
+    color: colors.muted,
+    textAlign: "center",
   },
 });
