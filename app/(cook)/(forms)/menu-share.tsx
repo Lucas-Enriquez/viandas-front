@@ -77,11 +77,12 @@ export default function MenuShareScreen() {
   return (
     <View style={styles.root}>
       <Hero
+        tone="ink"
         eyebrow="Menú publicado"
         onBack={() => router.replace("/menus")}
         rightAccessory={
           <View style={styles.heroIcon}>
-            <CheckCircle2 color={colors.onBrand} size={26} strokeWidth={2.4} />
+            <CheckCircle2 color={colors.onBrand} size={26} strokeWidth={1.8} />
           </View>
         }
         subtitle="Copiá el mensaje y mandalo a cada grupo de WhatsApp."
@@ -101,7 +102,7 @@ export default function MenuShareScreen() {
           <>
             <Card style={styles.section}>
               <View style={styles.sectionHeader}>
-                <MessageCircle color={colors.brandRed} size={20} strokeWidth={2.4} />
+                <MessageCircle color={colors.brandRed} size={20} strokeWidth={1.8} />
                 <Text style={styles.sectionTitle}>Mensaje</Text>
               </View>
               <View style={styles.messageBox}>
@@ -114,7 +115,7 @@ export default function MenuShareScreen() {
 
             <Card style={styles.section}>
               <View style={styles.sectionHeader}>
-                <MessageCircle color={colors.brandRed} size={20} strokeWidth={2.4} />
+                <MessageCircle color={colors.brandRed} size={20} strokeWidth={1.8} />
                 <Text style={styles.sectionTitle}>
                   Empresas ({menu?.companies.length ?? 0})
                 </Text>

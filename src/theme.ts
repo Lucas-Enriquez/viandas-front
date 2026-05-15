@@ -37,7 +37,7 @@
 
 export const colors = {
   // --- Fondo y Superficies (Limpieza absoluta) ---
-  background:     "#FBFBFB", // Blanco casi puro para que la comida resalte
+  background:     "#F7F3F0", // Crema cálida para que la comida resalte
   surface:        "#FFFFFF",
   surfaceMuted:   "#F2F4F7",
   surfaceWarm:    "#FFF9F5", // Un toque sutil de naranja/hueso
@@ -51,14 +51,13 @@ export const colors = {
   placeholder:    "#98A2B3",
   onBrand:        "#FFFFFF",
 
-  // --- El Rojo "Foodie" (Cálido, no rosado, no alerta) ---
-  // Este rojo tiene un toque de naranja, lo que lo hace ver como comida real.
-  brandRed:       "#C92A2A", // Un rojo "Tomate" maduro, sólido y confiable
-  brandRedDark:   "#A02121", 
-  brandRedLight:  "#E03131",
-  redBorder:      "#FFA8A8",
-  redSoft:        "#FFF5F5", 
-  redSofter:      "#FFF9F9",
+  // --- Rojo principal (Tailwind red-600 palette) ---
+  brandRed:       "#DC2626", // red-600 — vivo, moderno, excelente contraste
+  brandRedDark:   "#B91C1C", // red-700
+  brandRedLight:  "#EF4444", // red-500
+  redBorder:      "#FCA5A5", // red-300
+  redSoft:        "#FEE2E2", // red-100
+  redSofter:      "#FEF2F2", // red-50
 
   // --- Acentos de Frescura (Clave para Delivery/Viandas) ---
   // Cambiamos el azul por un verde "Bosque" para evocar ingredientes frescos.
@@ -122,11 +121,18 @@ export const shadows = {
     elevation: 12,
   },
   brand: {
-    shadowColor: colors.brandRed,
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.20,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowColor: colors.brandRedDark,
+    shadowOffset: { height: 4, width: 0 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  success: {
+    shadowColor: colors.success,
+    shadowOffset: { height: 4, width: 0 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    elevation: 4,
   },
 } as const;
 

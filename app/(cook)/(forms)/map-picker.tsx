@@ -164,13 +164,13 @@ export default function MapPickerScreen() {
         style={({ pressed }) => [styles.gpsButton, pressed && styles.gpsButtonPressed]}
         onPress={moveToCurrentLocation}
       >
-        <Navigation color={colors.brandRed} size={22} strokeWidth={2.4} />
+        <Navigation color={colors.brandRed} size={22} strokeWidth={1.8} />
       </Pressable>
 
       {/* Footer */}
       <View style={styles.footer}>
         <View style={styles.addressRow}>
-          <MapPin color={colors.brandRed} size={16} strokeWidth={2.4} />
+          <MapPin color={colors.brandRed} size={16} strokeWidth={1.8} />
           {reversing ? (
             <ActivityIndicator color={colors.brandRed} size="small" style={styles.spinner} />
           ) : (

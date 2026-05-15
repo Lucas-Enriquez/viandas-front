@@ -1,6 +1,7 @@
 import { useState } from "react"; // useState kept for deletingMenuId
 import {
   Alert,
+  Animated,
   Image,
   Linking,
   Pressable,
@@ -14,7 +15,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import {
-  ChevronRight,
   Clock,
   Copy,
   Globe2,
@@ -28,21 +28,22 @@ import {
   Utensils,
 } from "lucide-react-native";
 
-import { getApiErrorMessage } from "../../src/api/client";
-import { menusApi } from "../../src/api/menus";
-import { useAuth } from "../../src/auth/AuthContext";
-import { Button } from "../../src/components/Button";
-import { Card } from "../../src/components/Card";
-import { DangerConfirmModal } from "../../src/components/DangerConfirmModal";
-import { Hero } from "../../src/components/Hero";
-import { Skeleton } from "../../src/components/Skeleton";
-import { EmptyState, ErrorState } from "../../src/components/StateViews";
-import { StatusPill } from "../../src/components/StatusPill";
-import { useToast } from "../../src/providers/ToastProvider";
-import { colors, radius, shadows, spacing, typography } from "../../src/theme";
-import type { MenuResponse } from "../../src/types";
-import { formatMenuDate, todayYmd } from "../../src/utils/date";
-import { formatMoney } from "../../src/utils/format";
+import { getApiErrorMessage } from "../../../src/api/client";
+import { menusApi } from "../../../src/api/menus";
+import { useAuth } from "../../../src/auth/AuthContext";
+import { Button } from "../../../src/components/Button";
+import { Card } from "../../../src/components/Card";
+import { DangerConfirmModal } from "../../../src/components/DangerConfirmModal";
+import { Hero } from "../../../src/components/Hero";
+import { Skeleton } from "../../../src/components/Skeleton";
+import { EmptyState, ErrorState } from "../../../src/components/StateViews";
+import { StatusPill } from "../../../src/components/StatusPill";
+import { useToast } from "../../../src/providers/ToastProvider";
+import { usePressAnimation } from "../../../src/hooks/usePressAnimation";
+import { colors, radius, shadows, spacing, typography } from "../../../src/theme";
+import type { MenuResponse } from "../../../src/types";
+import { formatMenuDate, todayYmd } from "../../../src/utils/date";
+import { formatMoney } from "../../../src/utils/format";
 
 export default function MenusScreen() {
   const date = todayYmd();
@@ -145,9 +146,21 @@ export default function MenusScreen() {
   return (
     <View style={styles.root}>
       <Hero
+        tone="ink"
         eyebrow={formatMenuDate(date)}
         title={`Buen día, ${firstName}`}
-        subtitle="¿Arrancamos con el menú del día?"
+        subtitle={
+          menusQuery.isLoading
+            ? undefined
+            : menus.length === 0
+            ? "Sin menús para hoy todavía"
+            : `${menus.length} ${menus.length === 1 ? "menú" : "menús"} · ${publishedCount} publicado${publishedCount !== 1 ? "s" : ""}`
+        }
+        rightAccessory={
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{firstName[0]?.toUpperCase() ?? "C"}</Text>
+          </View>
+        }
       />
 
       <ScrollView
@@ -162,48 +175,19 @@ export default function MenusScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.statsRow}>
-          <StatChip label={String(menus.length)} caption={menus.length === 1 ? "menú" : "menús"} />
-          <StatChip label={String(totalItems)} caption="items" />
-          <StatChip label={String(publishedCount)} caption="publicados" />
-        </View>
-
-        <Pressable
-          disabled={cloneMutation.isPending}
-          onPress={() => cloneMutation.mutate()}
-          style={({ pressed }) => [styles.primaryAction, pressed && styles.actionPressed]}
-        >
-          <View style={styles.primaryActionIcon}>
-            <Copy color={colors.onBrand} size={26} strokeWidth={2.4} />
-          </View>
-          <View style={styles.primaryActionCopy}>
-            <Text style={styles.primaryActionTitle}>Clonar menú de ayer</Text>
-            <Text style={styles.primaryActionMeta}>
-              Empezá con la misma base y ajustá precios o stock.
-            </Text>
-          </View>
-          <ChevronRight color={colors.onBrand} size={20} strokeWidth={2.4} />
-        </Pressable>
-
         <View style={styles.actionGrid}>
           <ActionTile
             icon={Plus}
             onPress={() => router.push({ pathname: "/menu-create", params: { scope: "GLOBAL" } })}
-            subtitle="Menú vacío"
+            subtitle="Desde cero"
             title="Crear menú"
           />
           <ActionTile
-            icon={MessageCircle}
-            onPress={() => {
-              const lastPublished = menus.find((m) => m.status === "PUBLISHED");
-              if (!lastPublished) {
-                Alert.alert("Sin publicar", "Todavía no publicaste un menú hoy.");
-                return;
-              }
-              shareMutation.mutate(lastPublished.id);
-            }}
-            subtitle="Último publicado"
-            title="Compartir"
+            disabled={cloneMutation.isPending}
+            icon={Copy}
+            onPress={() => cloneMutation.mutate()}
+            subtitle="Igual que ayer"
+            title="Clonar"
           />
         </View>
 
@@ -257,37 +241,40 @@ export default function MenusScreen() {
   );
 }
 
-function StatChip({ label, caption }: { label: string; caption: string }) {
-  return (
-    <View style={styles.statChip}>
-      <Text style={styles.statValue}>{label}</Text>
-      <Text style={styles.statCaption}>{caption}</Text>
-    </View>
-  );
-}
 
 function ActionTile({
   icon: Icon,
   onPress,
   subtitle,
   title,
+  disabled = false,
 }: {
   icon: typeof Plus;
   onPress: () => void;
   subtitle: string;
   title: string;
+  disabled?: boolean;
 }) {
+  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation(0.96);
+
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.actionTile, pressed && styles.actionPressed]}
-    >
-      <View style={styles.actionTileIcon}>
-        <Icon color={colors.brandRed} size={22} strokeWidth={2.4} />
-      </View>
-      <Text style={styles.actionTileTitle}>{title}</Text>
-      <Text style={styles.actionTileSubtitle}>{subtitle}</Text>
-    </Pressable>
+    <Animated.View style={[styles.actionTileWrapper, animatedStyle]}>
+      <Pressable
+        disabled={disabled}
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={[styles.actionTile, disabled && { opacity: 0.5 }]}
+      >
+        <View style={styles.actionTileIcon}>
+          <Icon color={colors.brandRed} size={20} strokeWidth={1.8} />
+        </View>
+        <View style={styles.actionTileCopy}>
+          <Text style={styles.actionTileTitle}>{title}</Text>
+          <Text style={styles.actionTileSubtitle}>{subtitle}</Text>
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -312,8 +299,10 @@ function MenuCard({
       ? `${menu.companies.length} empresas`
       : menu.companyName ?? "Empresa sin nombre";
 
+  const accentColor = menu.status === "PUBLISHED" ? colors.success : colors.warning;
+
   return (
-    <Card style={styles.card}>
+    <Card style={{ ...styles.card, borderLeftColor: accentColor, borderLeftWidth: 3 }}>
       <View style={styles.cardHeader}>
         <View style={styles.menuInfo}>
           <View style={styles.scopeRow}>
@@ -321,7 +310,7 @@ function MenuCard({
             <Text style={styles.cardTitle}>{companyLabel}</Text>
           </View>
           <View style={styles.metaRow}>
-            <Clock color={colors.muted} size={16} strokeWidth={2.4} />
+            <Clock color={colors.muted} size={16} strokeWidth={1.8} />
             <Text style={styles.metaText}>Cierra {menu.orderClosesAt}</Text>
           </View>
         </View>
@@ -339,7 +328,7 @@ function MenuCard({
                 <Image source={{ uri: item.photoUrl }} style={styles.itemImage} />
               ) : (
                 <View style={styles.itemImageFallback}>
-                  <ImageOff color={colors.muted} size={18} strokeWidth={2.4} />
+                  <ImageOff color={colors.muted} size={18} strokeWidth={1.8} />
                 </View>
               )}
               <View style={styles.itemCopy}>
@@ -361,7 +350,7 @@ function MenuCard({
               onPress={onEdit}
               size="small"
               title="Editar"
-              variant="secondary"
+              variant="ghost"
             />
             <Button
               icon={Send}
@@ -369,6 +358,7 @@ function MenuCard({
               onPress={onPublish}
               size="small"
               title="Publicar"
+              variant="primary"
             />
           </>
         ) : (
@@ -385,7 +375,7 @@ function MenuCard({
           onPress={onDelete}
           style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
         >
-          <Trash2 color={colors.muted} size={18} strokeWidth={2.4} />
+          <Trash2 color={colors.muted} size={17} strokeWidth={1.8} />
         </Pressable>
       </View>
     </Card>
@@ -429,96 +419,60 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    gap: spacing.md,
-    padding: spacing.lg,
+    gap: spacing.sm,
+    padding: spacing.md,
     paddingBottom: spacing.xxxl,
   },
-  statsRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  statChip: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    flex: 1,
-    gap: 2,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  statValue: {
-    color: colors.ink,
-    fontSize: 22,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-  },
-  statCaption: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  primaryAction: {
+  avatar: {
     alignItems: "center",
     backgroundColor: colors.brandRed,
-    borderRadius: radius.xl,
-    flexDirection: "row",
-    gap: spacing.md,
-    padding: spacing.lg,
+    borderRadius: radius.pill,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
     ...shadows.brand,
   },
-  primaryActionIcon: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: radius.md,
-    height: 48,
-    justifyContent: "center",
-    width: 48,
-  },
-  primaryActionCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  primaryActionTitle: {
+  avatarText: {
     color: colors.onBrand,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "800",
     letterSpacing: -0.2,
   },
-  primaryActionMeta: {
-    color: "rgba(255,255,255,0.88)",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  actionPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
-  },
   actionGrid: {
     flexDirection: "row",
-    gap: spacing.md,
+    gap: spacing.sm,
+  },
+  actionTileWrapper: {
+    flex: 1,
   },
   actionTile: {
+    alignItems: "center",
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.xl,
-    borderWidth: 1,
+    borderRadius: radius.lg,
     flex: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    ...shadows.sm,
   },
   actionTileIcon: {
     alignItems: "center",
     backgroundColor: colors.redSoft,
-    borderRadius: radius.md,
-    height: 40,
+    borderRadius: radius.sm,
+    height: 34,
     justifyContent: "center",
-    marginBottom: spacing.xs,
-    width: 40,
+    width: 34,
+  },
+  actionTileCopy: {
+    flex: 1,
+    gap: 1,
   },
   actionTileTitle: {
-    ...typography.bodyStrong,
     color: colors.ink,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: -0.1,
   },
   actionTileSubtitle: {
     ...typography.caption,
@@ -612,11 +566,11 @@ const styles = StyleSheet.create({
   deleteButton: {
     alignItems: "center",
     backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.sm,
-    height: 36,
+    borderRadius: radius.md,
+    height: 34,
     justifyContent: "center",
     marginLeft: "auto",
-    width: 36,
+    width: 34,
   },
   deleteButtonPressed: {
     backgroundColor: colors.redSoft,

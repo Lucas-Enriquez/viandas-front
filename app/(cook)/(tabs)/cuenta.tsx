@@ -1,13 +1,13 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Building2, ChevronRight, LogOut, Mail, ShieldCheck, UserRound } from "lucide-react-native";
 
-import { useAuth } from "../../src/auth/AuthContext";
-import { Button } from "../../src/components/Button";
-import { Card } from "../../src/components/Card";
-import { Hero } from "../../src/components/Hero";
-import { colors, radius, spacing, typography } from "../../src/theme";
-import { formatRole } from "../../src/utils/format";
+import { useAuth } from "../../../src/auth/AuthContext";
+import { Card } from "../../../src/components/Card";
+import { usePressAnimation } from "../../../src/hooks/usePressAnimation";
+import { Hero } from "../../../src/components/Hero";
+import { colors, radius, spacing, typography } from "../../../src/theme";
+import { formatRole } from "../../../src/utils/format";
 
 export default function CuentaScreen() {
   const { session, signOut } = useAuth();
@@ -65,14 +65,28 @@ export default function CuentaScreen() {
           />
         </Card>
 
-        <Button
-          icon={LogOut}
-          onPress={signOut}
-          title="Cerrar sesión"
-          variant="secondary"
-        />
+        <LogoutButton onPress={signOut} />
       </ScrollView>
     </View>
+  );
+}
+
+function LogoutButton({ onPress }: { onPress: () => void }) {
+  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation(0.97);
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={styles.logoutBtn}
+      >
+        <View style={styles.logoutIconWrap}>
+          <LogOut color={colors.brandRed} size={20} strokeWidth={1.8} />
+        </View>
+        <Text style={styles.logoutLabel}>Cerrar sesión</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -88,7 +102,7 @@ function InfoRow({
   return (
     <View style={styles.row}>
       <View style={styles.rowIcon}>
-        <Icon color={colors.brandRed} size={20} strokeWidth={2.4} />
+        <Icon color={colors.brandRed} size={20} strokeWidth={1.8} />
       </View>
       <View style={styles.rowText}>
         <Text style={styles.rowLabel}>{label}</Text>
@@ -115,13 +129,13 @@ function NavRow({
       style={({ pressed }) => [styles.navRow, pressed && styles.navRowPressed]}
     >
       <View style={styles.rowIcon}>
-        <Icon color={colors.brandRed} size={20} strokeWidth={2.4} />
+        <Icon color={colors.brandRed} size={20} strokeWidth={1.8} />
       </View>
       <View style={styles.rowText}>
         <Text style={styles.rowValue}>{label}</Text>
         <Text style={styles.rowLabel}>{sublabel}</Text>
       </View>
-      <ChevronRight color={colors.muted} size={18} strokeWidth={2.4} />
+      <ChevronRight color={colors.muted} size={18} strokeWidth={1.8} />
     </Pressable>
   );
 }
@@ -189,5 +203,29 @@ const styles = StyleSheet.create({
   },
   navRowPressed: {
     opacity: 0.6,
+  },
+  logoutBtn: {
+    alignItems: "center",
+    backgroundColor: colors.redSoft,
+    borderColor: colors.redBorder,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  logoutIconWrap: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    height: 38,
+    justifyContent: "center",
+    width: 38,
+  },
+  logoutLabel: {
+    ...typography.bodyStrong,
+    color: colors.brandRed,
+    flex: 1,
   },
 });

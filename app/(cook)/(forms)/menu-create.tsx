@@ -278,6 +278,7 @@ export default function MenuCreateScreen() {
     <View style={styles.root}>
       <Hero
         compact
+        tone="ink"
         eyebrow="Menús"
         onBack={() => router.back()}
         subtitle={
@@ -328,7 +329,7 @@ export default function MenuCreateScreen() {
             <Card style={styles.section}>
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionHeader}>
-                  <CalendarDays color={colors.brandRed} size={22} strokeWidth={2.4} />
+                  <CalendarDays color={colors.brandRed} size={22} strokeWidth={1.8} />
                   <Text style={styles.sectionTitle}>Datos del menú</Text>
                 </View>
                 {isEditing && menu && (
@@ -393,7 +394,7 @@ export default function MenuCreateScreen() {
             {isEditing && menu && menu.items.length > 0 && (
               <Card style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Utensils color={colors.brandRed} size={22} strokeWidth={2.4} />
+                  <Utensils color={colors.brandRed} size={22} strokeWidth={1.8} />
                   <Text style={styles.sectionTitle}>Items del menú ({menu.items.length})</Text>
                 </View>
                 <View style={styles.itemList}>
@@ -403,7 +404,7 @@ export default function MenuCreateScreen() {
                         <Image source={{ uri: item.photoUrl }} style={styles.itemImage} />
                       ) : (
                         <View style={styles.itemImageFallback}>
-                          <ImageOff color={colors.muted} size={18} strokeWidth={2.4} />
+                          <ImageOff color={colors.muted} size={18} strokeWidth={1.8} />
                         </View>
                       )}
                       <View style={styles.itemBody}>
@@ -424,7 +425,7 @@ export default function MenuCreateScreen() {
             {isEditing && (
               <Card style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Plus color={colors.brandRed} size={22} strokeWidth={2.4} />
+                  <Plus color={colors.brandRed} size={22} strokeWidth={1.8} />
                   <Text style={styles.sectionTitle}>Agregar item</Text>
                 </View>
 
@@ -651,7 +652,7 @@ function CompanyChoice({
         </Text>
         {!!company.address && <Text style={styles.choiceMeta}>{company.address}</Text>}
       </View>
-      {selected && <Check color={colors.brandRed} size={19} strokeWidth={2.5} />}
+      {selected && <Check color={colors.brandRed} size={19} strokeWidth={1.8} />}
     </Pressable>
   );
 }
@@ -716,7 +717,7 @@ function ProductChoice({
             <Text style={styles.inMenuText}>En menú ✓</Text>
           </View>
         ) : selected ? (
-          <Check color={colors.brandRed} size={19} strokeWidth={2.5} />
+          <Check color={colors.brandRed} size={19} strokeWidth={1.8} />
         ) : null}
       </Pressable>
 

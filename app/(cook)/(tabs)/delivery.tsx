@@ -4,19 +4,19 @@ import { useMutation } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { CheckCircle2, MapPin, RefreshCw, Signal, Truck } from "lucide-react-native";
 
-import { getApiErrorMessage } from "../../src/api/client";
-import { deliveryApi } from "../../src/api/delivery";
-import { Button } from "../../src/components/Button";
-import { Card } from "../../src/components/Card";
-import { Hero } from "../../src/components/Hero";
-import { Skeleton } from "../../src/components/Skeleton";
-import { StatusPill } from "../../src/components/StatusPill";
-import { isDeliveryTrackingActive, stopDeliveryTracking } from "../../src/services/locationTask";
-import { useToast } from "../../src/providers/ToastProvider";
-import { getActiveDelivery } from "../../src/storage";
-import { colors, radius, shadows, spacing, typography } from "../../src/theme";
-import type { ActiveDeliverySession, DeliveryPublicSignal } from "../../src/types";
-import { formatRelativeDateTime } from "../../src/utils/date";
+import { getApiErrorMessage } from "../../../src/api/client";
+import { deliveryApi } from "../../../src/api/delivery";
+import { Button } from "../../../src/components/Button";
+import { Card } from "../../../src/components/Card";
+import { Hero } from "../../../src/components/Hero";
+import { Skeleton } from "../../../src/components/Skeleton";
+import { StatusPill } from "../../../src/components/StatusPill";
+import { isDeliveryTrackingActive, stopDeliveryTracking } from "../../../src/services/locationTask";
+import { useToast } from "../../../src/providers/ToastProvider";
+import { getActiveDelivery } from "../../../src/storage";
+import { colors, radius, shadows, spacing, typography } from "../../../src/theme";
+import type { ActiveDeliverySession, DeliveryPublicSignal } from "../../../src/types";
+import { formatRelativeDateTime } from "../../../src/utils/date";
 
 export default function DeliveryScreen() {
   const [activeDelivery, setActiveDelivery] = useState<ActiveDeliverySession | null>(null);
@@ -74,7 +74,7 @@ export default function DeliveryScreen() {
 
   return (
     <View style={styles.root}>
-      <Hero eyebrow={heroEyebrow} title={heroTitle} subtitle={heroSubtitle}>
+      <Hero tone="ink" eyebrow={heroEyebrow} title={heroTitle} subtitle={heroSubtitle}>
         {session && (
           <View style={styles.statsRow}>
             <StatChip
@@ -102,7 +102,7 @@ export default function DeliveryScreen() {
         ) : !activeDelivery ? (
           <Card style={styles.emptyCard}>
             <View style={styles.emptyIcon}>
-              <Truck color={colors.brandRed} size={32} strokeWidth={2.4} />
+              <Truck color={colors.brandRed} size={32} strokeWidth={1.8} />
             </View>
             <Text style={styles.emptyTitle}>No hay reparto activo</Text>
             <Text style={styles.emptyMessage}>
@@ -119,7 +119,7 @@ export default function DeliveryScreen() {
           <>
             <Card style={styles.signalCard}>
               <View style={styles.signalIcon}>
-                <Signal color={colors.brandRed} size={28} strokeWidth={2.5} />
+                <Signal color={colors.brandRed} size={28} strokeWidth={1.8} />
               </View>
               <Text style={styles.signalLabel}>{getSignalLabel(session!.publicSignal)}</Text>
               <Text style={styles.signalHelp}>{getSignalHelp(session!.publicSignal)}</Text>
@@ -131,12 +131,12 @@ export default function DeliveryScreen() {
 
             <View style={styles.detailGrid}>
               <Card style={styles.detailCard}>
-                <MapPin color={colors.success} size={22} strokeWidth={2.4} />
+                <MapPin color={colors.success} size={22} strokeWidth={1.8} />
                 <Text style={styles.detailTitle}>Tracking</Text>
                 <Text style={styles.detailValue}>{isTracking ? "En segundo plano" : "Detenido"}</Text>
               </Card>
               <Card style={styles.detailCard}>
-                <RefreshCw color={colors.brandRed} size={22} strokeWidth={2.4} />
+                <RefreshCw color={colors.brandRed} size={22} strokeWidth={1.8} />
                 <Text style={styles.detailTitle}>Último envío</Text>
                 <Text style={styles.detailValue}>
                   {session!.lastLocationAt ? formatRelativeDateTime(session!.lastLocationAt) : "Sin enviar"}

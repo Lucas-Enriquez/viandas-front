@@ -12,20 +12,20 @@ import {
   Truck,
 } from "lucide-react-native";
 
-import { getApiErrorMessage } from "../../src/api/client";
-import { deliveryApi } from "../../src/api/delivery";
-import { ordersApi, type OrderAction } from "../../src/api/orders";
-import { Button } from "../../src/components/Button";
-import { Card } from "../../src/components/Card";
-import { Hero } from "../../src/components/Hero";
-import { Skeleton } from "../../src/components/Skeleton";
-import { EmptyState, ErrorState } from "../../src/components/StateViews";
-import { StatusPill } from "../../src/components/StatusPill";
-import { startDeliveryTracking } from "../../src/services/locationTask";
-import { useToast } from "../../src/providers/ToastProvider";
-import { colors, radius, spacing, typography } from "../../src/theme";
-import type { OrderResponse, OrderStatus } from "../../src/types";
-import { formatMoney } from "../../src/utils/format";
+import { getApiErrorMessage } from "../../../src/api/client";
+import { deliveryApi } from "../../../src/api/delivery";
+import { ordersApi, type OrderAction } from "../../../src/api/orders";
+import { Button } from "../../../src/components/Button";
+import { Card } from "../../../src/components/Card";
+import { Hero } from "../../../src/components/Hero";
+import { Skeleton } from "../../../src/components/Skeleton";
+import { EmptyState, ErrorState } from "../../../src/components/StateViews";
+import { StatusPill } from "../../../src/components/StatusPill";
+import { startDeliveryTracking } from "../../../src/services/locationTask";
+import { useToast } from "../../../src/providers/ToastProvider";
+import { colors, radius, spacing, typography } from "../../../src/theme";
+import type { OrderResponse, OrderStatus } from "../../../src/types";
+import { formatMoney } from "../../../src/utils/format";
 
 const STATUS_GROUPS: Array<{ label: string; status: OrderStatus }> = [
   { label: "Recibidos", status: "RECEIVED" },
@@ -106,6 +106,7 @@ export default function OrdersScreen() {
   return (
     <View style={styles.root}>
       <Hero
+        tone="ink"
         eyebrow="Pedidos"
         title="Pedidos de hoy"
         subtitle="Se actualiza automáticamente cada 20s."
@@ -230,7 +231,7 @@ function OrderCard({
         <View style={styles.orderTitleBlock}>
           <Text style={styles.customer}>{order.customerName}</Text>
           <View style={styles.orderMetaRow}>
-            <Clock color={colors.muted} size={15} strokeWidth={2.3} />
+            <Clock color={colors.muted} size={15} strokeWidth={1.8} />
             <Text style={styles.orderMeta}>
               {new Date(order.createdAt).toLocaleTimeString("es-AR", {
                 hour: "2-digit",

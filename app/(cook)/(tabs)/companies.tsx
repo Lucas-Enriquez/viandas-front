@@ -24,18 +24,18 @@ import {
   X,
 } from "lucide-react-native";
 
-import { getApiErrorMessage } from "../../src/api/client";
-import { companiesApi } from "../../src/api/companies";
-import { Button } from "../../src/components/Button";
-import { Card } from "../../src/components/Card";
-import { Hero } from "../../src/components/Hero";
-import { Skeleton } from "../../src/components/Skeleton";
-import { EmptyState, ErrorState } from "../../src/components/StateViews";
-import { StatusPill } from "../../src/components/StatusPill";
-import { useToast } from "../../src/providers/ToastProvider";
-import { mapResultStore } from "../../src/stores/mapResult";
-import { colors, radius, shadows, spacing, typography } from "../../src/theme";
-import type { Company, GlobalInvitationResponse } from "../../src/types";
+import { getApiErrorMessage } from "../../../src/api/client";
+import { companiesApi } from "../../../src/api/companies";
+import { Button } from "../../../src/components/Button";
+import { Card } from "../../../src/components/Card";
+import { Hero } from "../../../src/components/Hero";
+import { Skeleton } from "../../../src/components/Skeleton";
+import { EmptyState, ErrorState } from "../../../src/components/StateViews";
+import { StatusPill } from "../../../src/components/StatusPill";
+import { useToast } from "../../../src/providers/ToastProvider";
+import { mapResultStore } from "../../../src/stores/mapResult";
+import { colors, radius, shadows, spacing, typography } from "../../../src/theme";
+import type { Company, GlobalInvitationResponse } from "../../../src/types";
 
 export default function CompaniesScreen() {
   const toast = useToast();
@@ -72,6 +72,7 @@ export default function CompaniesScreen() {
   return (
     <View style={styles.root}>
       <Hero
+        tone="ink"
         eyebrow="Empresas"
         title="Tus clientes"
         subtitle="Empresas que reciben los menús del día."
@@ -185,7 +186,7 @@ function ActionTile({
       style={({ pressed }) => [styles.actionTile, pressed && styles.actionTilePressed]}
     >
       <View style={styles.actionTileIcon}>
-        <Icon color={colors.brandRed} size={22} strokeWidth={2.4} />
+        <Icon color={colors.brandRed} size={22} strokeWidth={1.8} />
       </View>
       <Text style={styles.actionTileTitle}>{title}</Text>
       <Text style={styles.actionTileSubtitle}>{subtitle}</Text>
@@ -202,13 +203,13 @@ function CompanyCard({ company }: { company: Company }) {
   return (
     <Card style={styles.card} variant="elevated">
       <View style={styles.cardIcon}>
-        <Building2 color={colors.brandRed} size={22} strokeWidth={2.4} />
+        <Building2 color={colors.brandRed} size={22} strokeWidth={1.8} />
       </View>
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle}>{company.name}</Text>
         {!!company.address && (
           <View style={styles.addressRow}>
-            <MapPin color={colors.muted} size={14} strokeWidth={2.4} />
+            <MapPin color={colors.muted} size={14} strokeWidth={1.8} />
             <Text numberOfLines={2} style={styles.cardMeta}>
               {company.address}
             </Text>
@@ -233,7 +234,7 @@ function CompanyCard({ company }: { company: Company }) {
         }}
         style={({ pressed }) => [styles.editButton, pressed && styles.editButtonPressed]}
       >
-        <Pencil color={colors.brandRed} size={18} strokeWidth={2.4} />
+        <Pencil color={colors.brandRed} size={18} strokeWidth={1.8} />
       </Pressable>
     </Card>
   );
@@ -292,13 +293,13 @@ function InviteModal({
           {/* Header */}
           <View style={styles.modalHeader}>
             <View style={styles.modalHeaderIcon}>
-              <Link2 color={colors.brandRed} size={20} strokeWidth={2.4} />
+              <Link2 color={colors.brandRed} size={20} strokeWidth={1.8} />
             </View>
             <Text style={styles.modalTitle}>
               {generated ? "Link generado" : "Link de invitación"}
             </Text>
             <Pressable hitSlop={10} onPress={handleClose} style={styles.modalClose}>
-              <X color={colors.muted} size={20} strokeWidth={2.4} />
+              <X color={colors.muted} size={20} strokeWidth={1.8} />
             </Pressable>
           </View>
 

@@ -1,18 +1,18 @@
 import { useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { ChefHat, Pencil, Plus, RefreshCw, Sandwich, Salad, UtensilsCrossed } from "lucide-react-native";
+import { ChefHat, Pencil, Plus, RefreshCw } from "lucide-react-native";
 
-import { getApiErrorMessage } from "../../src/api/client";
-import { productsApi } from "../../src/api/products";
-import { Card } from "../../src/components/Card";
-import { Hero } from "../../src/components/Hero";
-import { Skeleton } from "../../src/components/Skeleton";
-import { EmptyState, ErrorState } from "../../src/components/StateViews";
-import { colors, radius, spacing, typography } from "../../src/theme";
-import type { MenuItemCategory, Product } from "../../src/types";
-import { formatMoney } from "../../src/utils/format";
+import { getApiErrorMessage } from "../../../src/api/client";
+import { productsApi } from "../../../src/api/products";
+import { Card } from "../../../src/components/Card";
+import { Hero } from "../../../src/components/Hero";
+import { Skeleton } from "../../../src/components/Skeleton";
+import { EmptyState, ErrorState } from "../../../src/components/StateViews";
+import { colors, radius, spacing, typography } from "../../../src/theme";
+import type { MenuItemCategory, Product } from "../../../src/types";
+import { formatMoney } from "../../../src/utils/format";
 
 type CategoryFilter = MenuItemCategory | "ALL";
 
@@ -22,11 +22,6 @@ const CATEGORY_LABELS: Record<MenuItemCategory, string> = {
   ENSALADA: "Ensaladas",
 };
 
-const CATEGORY_ICONS: Record<MenuItemCategory, typeof ChefHat> = {
-  PLATO: UtensilsCrossed,
-  MINUTA: Sandwich,
-  ENSALADA: Salad,
-};
 
 export default function ProductsScreen() {
   const [filter, setFilter] = useState<CategoryFilter>("ALL");
@@ -63,6 +58,7 @@ export default function ProductsScreen() {
   return (
     <View style={styles.root}>
       <Hero
+        tone="ink"
         eyebrow="Productos"
         title="Tu catálogo"
         subtitle="Reusalos al armar el menú del día."
@@ -85,7 +81,7 @@ export default function ProductsScreen() {
           style={({ pressed }) => [styles.createAction, pressed && styles.actionPressed]}
         >
           <View style={styles.createActionIcon}>
-            <Plus color={colors.brandRed} size={22} strokeWidth={2.4} />
+            <Plus color={colors.brandRed} size={22} strokeWidth={1.8} />
           </View>
           <View style={styles.createActionCopy}>
             <Text style={styles.createActionTitle}>Crear producto</Text>
@@ -159,12 +155,15 @@ export default function ProductsScreen() {
 }
 
 function ProductCard({ product }: { product: Product }) {
-  const Icon = CATEGORY_ICONS[product.category];
   return (
     <Card style={styles.card} variant="elevated">
-      <View style={styles.cardIcon}>
-        <Icon color={colors.brandRed} size={22} strokeWidth={2.4} />
-      </View>
+      {product.photoUrl ? (
+        <Image resizeMode="cover" source={{ uri: product.photoUrl }} style={styles.photo} />
+      ) : (
+        <View style={styles.photoPlaceholder}>
+          <Text style={styles.photoPlaceholderText}>Sin{"\n"}foto</Text>
+        </View>
+      )}
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle}>{product.name}</Text>
         <Text style={styles.cardPrice}>{formatMoney(product.price)}</Text>
@@ -182,7 +181,7 @@ function ProductCard({ product }: { product: Product }) {
         }
         style={({ pressed }) => [styles.editButton, pressed && styles.editButtonPressed]}
       >
-        <Pencil color={colors.brandRed} size={18} strokeWidth={2.4} />
+        <Pencil color={colors.brandRed} size={18} strokeWidth={1.8} />
       </Pressable>
     </Card>
   );
@@ -244,29 +243,32 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
     flexDirection: "row",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
   filterChipActive: {
     backgroundColor: colors.brandRed,
     borderColor: colors.brandRed,
   },
   filterText: {
-    ...typography.captionStrong,
     color: colors.muted,
+    fontSize: 12,
+    fontWeight: "600" as const,
+    letterSpacing: 0,
   },
   filterTextActive: {
     color: colors.onBrand,
   },
   filterCount: {
-    ...typography.captionStrong,
     backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     color: colors.muted,
-    minWidth: 20,
+    fontSize: 11,
+    fontWeight: "600" as const,
+    minWidth: 18,
     overflow: "hidden",
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 1,
     textAlign: "center",
   },
@@ -278,17 +280,29 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   card: {
-    alignItems: "flex-start",
+    alignItems: "center",
     flexDirection: "row",
     gap: spacing.md,
   },
-  cardIcon: {
-    alignItems: "center",
-    backgroundColor: colors.redSoft,
+  photo: {
     borderRadius: radius.md,
-    height: 44,
+    height: 72,
+    width: 72,
+  },
+  photoPlaceholder: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.md,
+    height: 72,
     justifyContent: "center",
-    width: 44,
+    width: 72,
+  },
+  photoPlaceholderText: {
+    color: colors.placeholder,
+    fontSize: 11,
+    fontWeight: "500" as const,
+    lineHeight: 15,
+    textAlign: "center",
   },
   cardBody: {
     flex: 1,

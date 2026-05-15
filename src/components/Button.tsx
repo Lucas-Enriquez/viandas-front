@@ -4,7 +4,7 @@ import type { LucideIcon } from "lucide-react-native";
 import { colors, radius, shadows, spacing, typography } from "../theme";
 import { usePressAnimation } from "../hooks/usePressAnimation";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "accent";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "accent" | "success";
 type ButtonSize = "medium" | "small";
 
 type ButtonProps = {
@@ -31,11 +31,13 @@ export function Button({
   const isDisabled = disabled || loading;
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation(0.96);
 
-  const iconColor =
-    variant === "primary" || variant === "accent" ? colors.onBrand : colors.brandRed;
-  const labelStyle =
-    variant === "primary" || variant === "accent" ? styles.labelOnBrand : styles.labelAlt;
-  const shadowStyle = variant === "primary" ? shadows.brand : variant === "accent" ? shadows.md : null;
+  const isOnBrand = variant === "primary" || variant === "accent" || variant === "success";
+  const iconColor = isOnBrand ? colors.onBrand : colors.brandRed;
+  const labelStyle = isOnBrand ? styles.labelOnBrand : styles.labelAlt;
+  const shadowStyle =
+    variant === "primary" ? shadows.brand :
+    variant === "success" ? shadows.success :
+    variant === "accent"  ? shadows.md : null;
 
   return (
     <Animated.View style={[animatedStyle, style]}>
@@ -50,9 +52,9 @@ export function Button({
         {loading ? (
           <ActivityIndicator color={iconColor} size="small" />
         ) : Icon ? (
-          <Icon color={iconColor} size={size === "small" ? 17 : 20} strokeWidth={2.5} />
+          <Icon color={iconColor} size={size === "small" ? 16 : 20} strokeWidth={1.8} />
         ) : null}
-        <Text style={[styles.label, labelStyle]}>{title}</Text>
+        <Text style={[styles.label, size === "small" && styles.labelSmall, labelStyle]}>{title}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -61,9 +63,9 @@ export function Button({
 const styles = StyleSheet.create({
   base: {
     alignItems: "center",
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     flexDirection: "row",
-    gap: spacing.sm,
+    gap: spacing.xs,
     justifyContent: "center",
     minHeight: 54,
     paddingHorizontal: spacing.lg,
@@ -72,8 +74,9 @@ const styles = StyleSheet.create({
     minHeight: 54,
   },
   small: {
-    minHeight: 40,
-    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    minHeight: 34,
+    paddingHorizontal: spacing.sm,
   },
   primary: {
     backgroundColor: colors.brandRed,
@@ -82,20 +85,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   secondary: {
-    backgroundColor: colors.redSoft,
-    borderColor: colors.brandRedLight,
-    borderWidth: 1,
+    backgroundColor: colors.surfaceMuted,
   },
   ghost: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
   },
+  success: {
+    backgroundColor: colors.success,
+  },
   disabled: {
     opacity: 0.55,
   },
   label: {
     ...typography.button,
+  },
+  labelSmall: {
+    fontSize: 13,
+    fontWeight: "600" as const,
+    letterSpacing: 0,
   },
   labelOnBrand: {
     color: colors.onBrand,

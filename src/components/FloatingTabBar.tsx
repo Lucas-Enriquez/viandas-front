@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Easing,
+  LayoutAnimation,
   Platform,
   Pressable,
   StyleSheet,
@@ -24,6 +26,16 @@ if (
 const TAB_HEIGHT = 48;
 const ICON_SIZE = 22;
 
+const SPRING_LAYOUT: Parameters<typeof LayoutAnimation.configureNext>[0] = {
+  duration: 320,
+  // Only animate layout changes (flex/size). Label opacity is owned by Animated.timing —
+  // including create/delete here would conflict and leave the label stuck at opacity 0.
+  update: {
+    type: LayoutAnimation.Types.spring,
+    springDamping: 0.82,
+  },
+};
+
 // Screens should add this as paddingBottom so content isn't hidden behind the bar.
 export const FLOATING_BAR_BOTTOM_OFFSET = TAB_HEIGHT + 56; // ~104dp, covers any safe-area
 
@@ -44,21 +56,20 @@ function TabItem({
   accessibilityLabel?: string;
   testID?: string;
 }) {
-  // Only native-driver animations: no width/layout on JS thread.
   const labelOpacity = useRef(new Animated.Value(isFocused ? 1 : 0)).current;
   const pressScale  = useRef(new Animated.Value(1)).current;
 
-  // Delay icon color switch when becoming active so it doesn't flash
-  // white on a gray background before the pill snaps to red.
+  // Delay icon color switch so it doesn't flash before the pill widens.
   const [iconWhite, setIconWhite] = useState(isFocused);
 
   useEffect(() => {
     if (isFocused) {
-      const t = setTimeout(() => setIconWhite(true), 30);
+      const t = setTimeout(() => setIconWhite(true), 100);
       Animated.timing(labelOpacity, {
         toValue: 1,
-        duration: 160,
-        delay: 60,
+        duration: 220,
+        delay: 100,
+        easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }).start();
       return () => clearTimeout(t);
@@ -66,7 +77,8 @@ function TabItem({
       setIconWhite(false);
       Animated.timing(labelOpacity, {
         toValue: 0,
-        duration: 80,
+        duration: 100,
+        easing: Easing.in(Easing.quad),
         useNativeDriver: true,
       }).start();
     }
@@ -74,7 +86,7 @@ function TabItem({
 
   const onPressIn = () =>
     Animated.spring(pressScale, {
-      toValue: 0.88,
+      toValue: 0.90,
       useNativeDriver: true,
       speed: 40,
       bounciness: 0,
@@ -84,8 +96,8 @@ function TabItem({
     Animated.spring(pressScale, {
       toValue: 1,
       useNativeDriver: true,
-      speed: 18,
-      bounciness: 5,
+      speed: 13,
+      bounciness: 2,
     }).start();
 
   const iconColor = iconWhite ? colors.onBrand : colors.muted;
@@ -100,19 +112,20 @@ function TabItem({
       onPressOut={onPressOut}
       onPress={onPress}
       onLongPress={onLongPress}
+      style={isFocused ? styles.tabActive : styles.tabInactive}
     >
-      <Animated.View style={{ transform: [{ scale: pressScale }] }}>
-        <View style={isFocused ? styles.tabActive : styles.tabInactive}>
-          {Icon ? Icon({ focused: isFocused, color: iconColor, size: ICON_SIZE }) : null}
-          {isFocused && (
-            <Animated.Text
-              numberOfLines={1}
-              style={[styles.label, { opacity: labelOpacity }]}
-            >
-              {label}
-            </Animated.Text>
-          )}
-        </View>
+      <Animated.View
+        style={[styles.tabInner, { transform: [{ scale: pressScale }] }]}
+      >
+        {Icon ? Icon({ focused: isFocused, color: iconColor, size: ICON_SIZE }) : null}
+        {isFocused && (
+          <Animated.Text
+            numberOfLines={1}
+            style={[styles.label, { opacity: labelOpacity }]}
+          >
+            {label}
+          </Animated.Text>
+        )}
       </Animated.View>
     </Pressable>
   );
@@ -135,7 +148,7 @@ export function FloatingTabBar({
 
   return (
     <>
-      {/* Blur backdrop — blurs content scrolling behind the bar */}
+      {/* Blur backdrop */}
       <BlurView
         intensity={28}
         tint="light"
@@ -143,7 +156,7 @@ export function FloatingTabBar({
         style={[styles.scrim, { height: scrimHeight }]}
       />
 
-      {/* SVG gradient overlay — transparent top → solid bottom so blur fades in smoothly */}
+      {/* SVG gradient overlay */}
       <Svg
         pointerEvents="none"
         style={[styles.scrim, { height: scrimHeight }]}
@@ -183,6 +196,7 @@ export function FloatingTabBar({
                 canPreventDefault: true,
               });
               if (!isFocused && !event.defaultPrevented) {
+                LayoutAnimation.configureNext(SPRING_LAYOUT);
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (navigation as any).navigate(route.name, route.params);
               }
@@ -222,7 +236,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     bottom: 0,
     left: 0,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.md,
     pointerEvents: "box-none",
     position: "absolute",
     right: 0,
@@ -232,34 +246,39 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.pill,
     flexDirection: "row",
-    gap: spacing.xxxs,
-    justifyContent: "center",
     paddingHorizontal: spacing.xxxs,
     paddingVertical: spacing.xxxs,
+    width: "100%",
     ...shadows.lg,
   },
-  // Inactive: explicit square → border-radius makes it a circle
-  tabInactive: {
-    alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.pill,
-    height: TAB_HEIGHT,
-    justifyContent: "center",
-    overflow: "hidden",
-    width: TAB_HEIGHT,
-  },
-  // Active: pill shape grows to fit icon + label
+  // Active: flex: 2 — grows proportionally relative to inactive tabs
   tabActive: {
     alignItems: "center",
     backgroundColor: colors.brandRed,
     borderRadius: radius.pill,
+    flex: 2,
     flexDirection: "row",
-    gap: spacing.xs,
     height: TAB_HEIGHT,
     justifyContent: "center",
     overflow: "hidden",
-    paddingHorizontal: spacing.md,
     ...shadows.brand,
+  },
+  // Inactive: flex: 1 — equal share of remaining space
+  tabInactive: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.pill,
+    flex: 1,
+    height: TAB_HEIGHT,
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  tabInner: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.xs,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
   },
   label: {
     ...typography.captionStrong,

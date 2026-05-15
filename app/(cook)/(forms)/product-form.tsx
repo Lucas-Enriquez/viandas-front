@@ -155,6 +155,7 @@ export default function ProductFormScreen() {
     <View style={styles.root}>
       <Hero
         compact
+        tone="ink"
         eyebrow="Productos"
         onBack={() => router.back()}
         subtitle={isEditing ? "Editá los datos del producto." : "Completá los datos del nuevo producto."}
@@ -176,7 +177,7 @@ export default function ProductFormScreen() {
             {/* Photo picker */}
             <Card style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Camera color={colors.brandRed} size={22} strokeWidth={2.4} />
+                <Camera color={colors.brandRed} size={22} strokeWidth={1.8} />
                 <Text style={styles.sectionTitle}>Foto</Text>
               </View>
 
@@ -195,7 +196,7 @@ export default function ProductFormScreen() {
                     <X color={colors.onBrand} size={14} strokeWidth={2.6} />
                   </Pressable>
                   <Pressable onPress={pickImage} style={styles.changePhotoBtn}>
-                    <Camera color={colors.onBrand} size={16} strokeWidth={2.4} />
+                    <Camera color={colors.onBrand} size={16} strokeWidth={1.8} />
                     <Text style={styles.changePhotoText}>Cambiar</Text>
                   </Pressable>
                 </View>
@@ -217,7 +218,7 @@ export default function ProductFormScreen() {
             {/* Product data */}
             <Card style={styles.section}>
               <View style={styles.sectionHeader}>
-                <ChefHat color={colors.brandRed} size={22} strokeWidth={2.4} />
+                <ChefHat color={colors.brandRed} size={22} strokeWidth={1.8} />
                 <Text style={styles.sectionTitle}>Datos generales</Text>
               </View>
               <Input

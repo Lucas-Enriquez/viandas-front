@@ -42,7 +42,7 @@ export function Hero({
   const isLight = tone === "surface";
   const onColor = isLight ? colors.ink : colors.onBrand;
   const onSoftColor = isLight ? colors.muted : "rgba(255, 255, 255, 0.85)";
-  const eyebrowColor = isLight ? colors.brandRed : "rgba(255, 255, 255, 0.7)";
+  const eyebrowColor = tone === "brand" ? "rgba(255, 255, 255, 0.7)" : colors.brandRed;
 
   const titleStyle = compact ? styles.titleCompact : styles.title;
   const contentStyle = compact ? styles.contentCompact : styles.content;
@@ -115,8 +115,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   contentCompact: {
-    paddingBottom: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.xs,
   },
   row: {

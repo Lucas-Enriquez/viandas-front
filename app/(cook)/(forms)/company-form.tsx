@@ -194,6 +194,7 @@ export default function CompanyFormScreen() {
     <View style={styles.root}>
       <Hero
         compact
+        tone="ink"
         eyebrow="Empresas"
         onBack={() => router.back()}
         subtitle="La ubicación se usa para calcular si el reparto está cerca."
@@ -214,7 +215,7 @@ export default function CompanyFormScreen() {
           <>
       <Card style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Building2 color={colors.brandRed} size={22} strokeWidth={2.4} />
+          <Building2 color={colors.brandRed} size={22} strokeWidth={1.8} />
           <Text style={styles.sectionTitle}>Datos generales</Text>
         </View>
         <Input label="Nombre" onChangeText={setName} value={name} />
@@ -229,13 +230,13 @@ export default function CompanyFormScreen() {
 
       <Card style={styles.section}>
         <View style={styles.sectionHeader}>
-          <MapPin color={colors.brandRed} size={22} strokeWidth={2.4} />
+          <MapPin color={colors.brandRed} size={22} strokeWidth={1.8} />
           <Text style={styles.sectionTitle}>Ubicación</Text>
         </View>
         {latitude && longitude ? (
           <View style={styles.coordsCard}>
             <View style={styles.coordsRow}>
-              <Navigation color={colors.success} size={16} strokeWidth={2.4} />
+              <Navigation color={colors.success} size={16} strokeWidth={1.8} />
               <Text style={styles.coordsValue}>
                 {latitude}, {longitude}
               </Text>
@@ -255,7 +256,7 @@ export default function CompanyFormScreen() {
       {isEditing && (
         <Card style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Link2 color={colors.brandRed} size={22} strokeWidth={2.4} />
+            <Link2 color={colors.brandRed} size={22} strokeWidth={1.8} />
             <Text style={styles.sectionTitle}>Link para empleados</Text>
           </View>
 
