@@ -28,7 +28,7 @@ export default function EmployeeLayout() {
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        sceneStyle: { backgroundColor: colors.background, paddingBottom: FLOATING_BAR_BOTTOM_OFFSET },
+        sceneStyle: { backgroundColor: colors.background },
       }}
     >
       <Tabs.Screen

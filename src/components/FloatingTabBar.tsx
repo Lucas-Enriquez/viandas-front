@@ -9,7 +9,6 @@ import {
   UIManager,
   View,
 } from "react-native";
-import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
@@ -137,7 +136,6 @@ export function FloatingTabBar({
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, spacing.sm);
-  const scrimHeight = TAB_HEIGHT + bottomInset + spacing.xxxl + spacing.lg;
 
   const visibleRoutes = state.routes.filter((route) => {
     const { options } = descriptors[route.key];
@@ -146,31 +144,11 @@ export function FloatingTabBar({
   });
 
   return (
-    <>
-      {/* SVG gradient fade — softens content below bar */}
-      <Svg
-        pointerEvents="none"
-        style={[styles.scrim, { height: scrimHeight }]}
-        width="100%"
-        height={scrimHeight}
-      >
-        <Defs>
-          <LinearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0"    stopColor={colors.background} stopOpacity="0"   />
-            <Stop offset="0.45" stopColor={colors.background} stopOpacity="0.1" />
-            <Stop offset="0.75" stopColor={colors.background} stopOpacity="0.7" />
-            <Stop offset="1"    stopColor={colors.background} stopOpacity="1"   />
-          </LinearGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill="url(#scrim)" />
-      </Svg>
-
-      {/* Floating pill bar */}
-      <View
-        pointerEvents="box-none"
-        style={[styles.wrapper, { paddingBottom: bottomInset + spacing.sm }]}
-      >
-        <View style={styles.bar}>
+    <View
+      pointerEvents="box-none"
+      style={[styles.wrapper, { paddingBottom: bottomInset + spacing.sm }]}
+    >
+      <View style={styles.bar}>
           {visibleRoutes.map((route) => {
             const realIndex = state.routes.findIndex((r) => r.key === route.key);
             const isFocused = state.index === realIndex;
@@ -210,19 +188,12 @@ export function FloatingTabBar({
               />
             );
           })}
-        </View>
       </View>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scrim: {
-    bottom: 0,
-    left: 0,
-    position: "absolute",
-    right: 0,
-  },
   wrapper: {
     alignItems: "center",
     bottom: 0,
@@ -234,11 +205,13 @@ const styles = StyleSheet.create({
   } as const,
   bar: {
     alignItems: "center",
+    backgroundColor: colors.surface,
     borderRadius: radius.pill,
     flexDirection: "row",
     paddingHorizontal: spacing.xxxs,
     paddingVertical: spacing.xxxs,
     width: "100%",
+    ...shadows.lg,
   },
   // Active: flex: 2 — grows proportionally relative to inactive tabs
   tabActive: {
