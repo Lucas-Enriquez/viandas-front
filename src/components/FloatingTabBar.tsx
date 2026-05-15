@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
@@ -148,15 +147,7 @@ export function FloatingTabBar({
 
   return (
     <>
-      {/* Blur backdrop */}
-      <BlurView
-        intensity={28}
-        tint="light"
-        pointerEvents="none"
-        style={[styles.scrim, { height: scrimHeight }]}
-      />
-
-      {/* SVG gradient overlay */}
+      {/* SVG gradient fade — softens content below bar */}
       <Svg
         pointerEvents="none"
         style={[styles.scrim, { height: scrimHeight }]}
@@ -166,8 +157,8 @@ export function FloatingTabBar({
         <Defs>
           <LinearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0"    stopColor={colors.background} stopOpacity="0"   />
-            <Stop offset="0.5"  stopColor={colors.background} stopOpacity="0.2" />
-            <Stop offset="0.78" stopColor={colors.background} stopOpacity="0.8" />
+            <Stop offset="0.45" stopColor={colors.background} stopOpacity="0.1" />
+            <Stop offset="0.75" stopColor={colors.background} stopOpacity="0.7" />
             <Stop offset="1"    stopColor={colors.background} stopOpacity="1"   />
           </LinearGradient>
         </Defs>
@@ -243,13 +234,11 @@ const styles = StyleSheet.create({
   } as const,
   bar: {
     alignItems: "center",
-    backgroundColor: colors.surface,
     borderRadius: radius.pill,
     flexDirection: "row",
     paddingHorizontal: spacing.xxxs,
     paddingVertical: spacing.xxxs,
     width: "100%",
-    ...shadows.lg,
   },
   // Active: flex: 2 — grows proportionally relative to inactive tabs
   tabActive: {
@@ -263,10 +252,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     ...shadows.brand,
   },
-  // Inactive: flex: 1 — equal share of remaining space
+  // Inactive: transparent — glass background shows through
   tabInactive: {
     alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: "transparent",
     borderRadius: radius.pill,
     flex: 1,
     height: TAB_HEIGHT,

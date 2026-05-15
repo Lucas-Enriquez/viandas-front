@@ -76,6 +76,7 @@ export type MenuCompanyResponse = {
 export type MenuItemResponse = {
   availableCompanyIds: UUID[];
   category: MenuItemCategory;
+  description: string | null;
   id: UUID;
   name: string;
   photoUrl: string | null;

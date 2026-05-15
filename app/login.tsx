@@ -93,7 +93,7 @@ export default function LoginScreen() {
       keyboardVerticalOffset={Platform.select({ ios: 8, android: 0 })}
       style={styles.root}
     >
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.heroBg}>
         <SafeAreaView edges={["top"]}>
           <View style={[styles.heroContent, isKeyboardVisible && styles.heroContentCompact]}>
@@ -127,7 +127,7 @@ export default function LoginScreen() {
             keyboardType="email-address"
             label="Email"
             onChangeText={setEmail}
-            placeholder="cook@caseritas.com"
+            placeholder="tu@email.com"
             returnKeyType="next"
             textContentType="emailAddress"
             value={email}
@@ -146,9 +146,9 @@ export default function LoginScreen() {
                 style={styles.eyeButton}
               >
                 {isPasswordVisible ? (
-                  <EyeOff color={colors.muted} size={21} strokeWidth={2.4} />
+                  <EyeOff color={colors.muted} size={21} strokeWidth={1.8} />
                 ) : (
-                  <Eye color={colors.muted} size={21} strokeWidth={2.4} />
+                  <Eye color={colors.muted} size={21} strokeWidth={1.8} />
                 )}
               </Pressable>
             }
@@ -182,10 +182,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroBg: {
-    backgroundColor: colors.brandRed,
+    backgroundColor: colors.surface,
     borderBottomLeftRadius: radius.xxl,
     borderBottomRightRadius: radius.xxl,
     overflow: "hidden",
+    ...shadows.md,
   },
   heroContent: {
     alignItems: "center",
@@ -207,7 +208,7 @@ const styles = StyleSheet.create({
     width: 48,
   },
   title: {
-    color: colors.onBrand,
+    color: colors.ink,
     fontSize: 26,
     fontWeight: "800",
     letterSpacing: -0.4,
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   subtitle: {
-    color: "rgba(255,255,255,0.85)",
+    color: colors.muted,
     fontSize: 15,
     fontWeight: "500",
     lineHeight: 22,

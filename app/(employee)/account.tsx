@@ -1,13 +1,14 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { Building2, Link2, LogOut, Mail, UserRound } from "lucide-react-native";
+import { Building2, Link2, LogOut, Mail, ShieldCheck, UserRound } from "lucide-react-native";
 
 import { useAuth } from "../../src/auth/AuthContext";
-import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
+import { usePressAnimation } from "../../src/hooks/usePressAnimation";
 import { Hero } from "../../src/components/Hero";
 import { colors, radius, spacing, typography } from "../../src/theme";
 import { formatRole } from "../../src/utils/format";
+import { Button } from "../../src/components/Button";
 
 export default function AccountScreen() {
   const { session, signOut } = useAuth();
@@ -29,7 +30,7 @@ export default function AccountScreen() {
             <Text style={styles.avatarText}>{initials || "?"}</Text>
           </View>
         }
-        subtitle={company?.name ?? "Sin empresa asignada"}
+        subtitle={session?.user.email ?? ""}
         title={session?.user.name ?? "Empleado"}
         tone="ink"
       />
@@ -39,9 +40,26 @@ export default function AccountScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Card style={styles.card}>
-          <InfoRow icon={UserRound} label="Rol" value={formatRole(session?.user.role)} />
-          <InfoRow icon={Mail} label="Email" value={session?.user.email ?? "—"} />
-          <InfoRow icon={Building2} label="Empresa" value={company?.name ?? "—"} />
+          <InfoRow
+            icon={UserRound}
+            label="Rol"
+            value={formatRole(session?.user.role)}
+          />
+          <InfoRow
+            icon={Mail}
+            label="Email"
+            value={session?.user.email ?? "—"}
+          />
+          <InfoRow
+            icon={Building2}
+            label="Empresa"
+            value={company?.name ?? "—"}
+          />
+          <InfoRow
+            icon={ShieldCheck}
+            label="ID"
+            value={session?.user.id?.slice(0, 8) ?? "—"}
+          />
         </Card>
 
         <Button
@@ -50,9 +68,29 @@ export default function AccountScreen() {
           title="Aceptar invitación"
           variant="ghost"
         />
-        <Button icon={LogOut} onPress={signOut} title="Cerrar sesión" variant="secondary" />
+
+        <LogoutButton onPress={signOut} />
       </ScrollView>
     </View>
+  );
+}
+
+function LogoutButton({ onPress }: { onPress: () => void }) {
+  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation(0.97);
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={styles.logoutBtn}
+      >
+        <View style={styles.logoutIconWrap}>
+          <LogOut color={colors.brandRed} size={20} strokeWidth={1.8} />
+        </View>
+        <Text style={styles.logoutLabel}>Cerrar sesión</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -68,7 +106,7 @@ function InfoRow({
   return (
     <View style={styles.row}>
       <View style={styles.rowIcon}>
-        <Icon color={colors.brandRed} size={20} strokeWidth={2.4} />
+        <Icon color={colors.brandRed} size={20} strokeWidth={1.8} />
       </View>
       <View style={styles.rowText}>
         <Text style={styles.rowLabel}>{label}</Text>
@@ -128,5 +166,29 @@ const styles = StyleSheet.create({
   rowValue: {
     ...typography.bodyStrong,
     color: colors.ink,
+  },
+  logoutBtn: {
+    alignItems: "center",
+    backgroundColor: colors.redSoft,
+    borderColor: colors.redBorder,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  logoutIconWrap: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    height: 38,
+    justifyContent: "center",
+    width: 38,
+  },
+  logoutLabel: {
+    ...typography.bodyStrong,
+    color: colors.brandRed,
+    flex: 1,
   },
 });

@@ -24,4 +24,20 @@ export const employeeApi = {
       method: "POST",
     });
   },
+
+  cancelOrder(date: string) {
+    return apiFetch<OrderResponse>(`/employee/menus/${date}/orders/current`, {
+      method: "DELETE",
+    });
+  },
+
+  updateItemComment(date: string, itemId: string, comment: string | null) {
+    return apiFetch<OrderResponse>(
+      `/employee/menus/${date}/orders/current/items/${itemId}`,
+      {
+        body: JSON.stringify({ comment }),
+        method: "PATCH",
+      },
+    );
+  },
 };

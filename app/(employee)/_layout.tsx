@@ -35,7 +35,7 @@ export default function EmployeeLayout() {
         name="employee-menu"
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Utensils color={color} size={size} strokeWidth={2.4} />
+            <Utensils color={color} size={size} strokeWidth={1.8} />
           ),
           title: "Menú",
         }}
@@ -44,7 +44,7 @@ export default function EmployeeLayout() {
         name="employee-order"
         options={{
           tabBarIcon: ({ color, size }) => (
-            <ClipboardCheck color={color} size={size} strokeWidth={2.4} />
+            <ClipboardCheck color={color} size={size} strokeWidth={1.8} />
           ),
           title: "Mi pedido",
         }}
@@ -53,7 +53,7 @@ export default function EmployeeLayout() {
         name="account"
         options={{
           tabBarIcon: ({ color, size }) => (
-            <UserRound color={color} size={size} strokeWidth={2.4} />
+            <UserRound color={color} size={size} strokeWidth={1.8} />
           ),
           title: "Cuenta",
         }}

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { ImageOff, Minus, Plus, RefreshCw, ShoppingBag } from "lucide-react-native";
+import { Minus, Plus, RefreshCw, ShoppingBag, X } from "lucide-react-native";
 
 import { employeeApi } from "../../src/api/employee";
 import { getApiErrorMessage } from "../../src/api/client";
@@ -13,7 +14,7 @@ import { Skeleton } from "../../src/components/Skeleton";
 import { ErrorState } from "../../src/components/StateViews";
 import { StatusPill } from "../../src/components/StatusPill";
 import { useToast } from "../../src/providers/ToastProvider";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { colors, radius, shadows, spacing, typography } from "../../src/theme";
 import type { MenuItemResponse } from "../../src/types";
 import { formatMenuDate, todayYmd } from "../../src/utils/date";
 import { formatMoney } from "../../src/utils/format";
@@ -24,6 +25,8 @@ export default function EmployeeMenuScreen() {
   const { date: dateParam } = useLocalSearchParams<{ date?: string }>();
   const date = dateParam ?? todayYmd();
   const [draft, setDraft] = useState<ItemDraft>({});
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [preview, setPreview] = useState<MenuItemResponse | null>(null);
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -40,9 +43,7 @@ export default function EmployeeMenuScreen() {
   const createOrderMutation = useMutation({
     mutationFn: () => {
       const menu = menuQuery.data;
-      if (!menu) {
-        throw new Error("Primero cargá un menú.");
-      }
+      if (!menu) throw new Error("Primero cargá un menú.");
 
       const items = menu.items
         .map((item) => ({
@@ -51,12 +52,11 @@ export default function EmployeeMenuScreen() {
           quantity: clampQuantity(item, draft[item.id] ?? 0),
         }))
         .filter((item) => item.quantity > 0);
-      if (items.length === 0) {
-        throw new Error("Elegí al menos un item.");
-      }
+      if (items.length === 0) throw new Error("Elegí al menos un item.");
       return employeeApi.createOrder(date, { items });
     },
     onError: (error) => {
+      setConfirmVisible(false);
       toast.show({
         title: "No pudimos crear el pedido",
         message: getApiErrorMessage(error),
@@ -65,6 +65,7 @@ export default function EmployeeMenuScreen() {
     },
     onSuccess: () => {
       setDraft({});
+      setConfirmVisible(false);
       queryClient.invalidateQueries({ queryKey: ["employee", "current-order"] });
       toast.show({
         title: "Pedido creado",
@@ -75,16 +76,23 @@ export default function EmployeeMenuScreen() {
     },
   });
 
-  const selectedTotal = useMemo(() => {
+  const selectedItems = useMemo(() => {
     const menu = menuQuery.data;
-    if (!menu) {
-      return 0;
-    }
-    return menu.items.reduce(
-      (sum, item) => sum + clampQuantity(item, draft[item.id] ?? 0) * item.price,
-      0,
-    );
+    if (!menu) return [];
+    return menu.items
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        quantity: clampQuantity(item, draft[item.id] ?? 0),
+        unitPrice: item.price,
+      }))
+      .filter((item) => item.quantity > 0);
   }, [draft, menuQuery.data]);
+
+  const selectedTotal = useMemo(
+    () => selectedItems.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0),
+    [selectedItems],
+  );
 
   if (menuQuery.isError) {
     return (
@@ -121,7 +129,7 @@ export default function EmployeeMenuScreen() {
 
   return (
     <View style={styles.root}>
-      <Hero eyebrow={heroEyebrow} title={heroTitle} subtitle={heroSubtitle}>
+      <Hero eyebrow={heroEyebrow} subtitle={heroSubtitle} title={heroTitle} tone="ink">
         {menu && (
           <View style={styles.statsRow}>
             <StatChip label={String(menu.items.length)} caption="items" />
@@ -149,16 +157,17 @@ export default function EmployeeMenuScreen() {
         showsVerticalScrollIndicator={false}
       >
         {isLoading ? (
-          <View style={styles.skeletonGroup}>
-            <Skeleton.Card height={120} />
-            <Skeleton.Card height={120} />
-            <Skeleton.Card height={120} />
+          <View style={styles.grid}>
+            <Skeleton.Card height={220} style={{ width: "48%" }} />
+            <Skeleton.Card height={220} style={{ width: "48%" }} />
+            <Skeleton.Card height={220} style={{ width: "48%" }} />
+            <Skeleton.Card height={220} style={{ width: "48%" }} />
           </View>
         ) : menu && !menu.canOrder && !hasCurrentOrder ? (
           <ClosedMenuState />
         ) : (
           <>
-            {currentOrderQuery.isError ? (
+            {currentOrderQuery.isError && (
               <Card style={styles.notice} variant="warm">
                 <StatusPill label="Aviso" tone="warning" />
                 <Text style={styles.noticeText}>
@@ -166,9 +175,9 @@ export default function EmployeeMenuScreen() {
                   validar al enviar.
                 </Text>
               </Card>
-            ) : null}
+            )}
 
-            {currentOrder?.hasOrder ? (
+            {currentOrder?.hasOrder && (
               <Card style={styles.notice} variant="warm">
                 <StatusPill label="Pedido registrado" tone="success" />
                 <Text style={styles.noticeText}>{currentOrder.message}</Text>
@@ -179,9 +188,9 @@ export default function EmployeeMenuScreen() {
                   variant="secondary"
                 />
               </Card>
-            ) : null}
+            )}
 
-            <View style={styles.list}>
+            <View style={styles.grid}>
               {menu?.items.map((item) => (
                 <MenuItemCard
                   item={item}
@@ -192,6 +201,7 @@ export default function EmployeeMenuScreen() {
                       [item.id]: clampQuantity(item, quantity),
                     }))
                   }
+                  onPreview={() => setPreview(item)}
                   quantity={clampQuantity(item, draft[item.id] ?? 0)}
                 />
               ))}
@@ -207,7 +217,7 @@ export default function EmployeeMenuScreen() {
                 disabled={!!disabledReason}
                 icon={ShoppingBag}
                 loading={createOrderMutation.isPending}
-                onPress={() => createOrderMutation.mutate()}
+                onPress={() => setConfirmVisible(true)}
                 style={styles.checkoutButton}
                 title="Pedir"
               />
@@ -215,7 +225,185 @@ export default function EmployeeMenuScreen() {
           </>
         )}
       </ScrollView>
+
+      <ProductPreviewModal item={preview} onClose={() => setPreview(null)} />
+
+      <ConfirmOrderModal
+        items={selectedItems}
+        loading={createOrderMutation.isPending}
+        onCancel={() => setConfirmVisible(false)}
+        onConfirm={() => createOrderMutation.mutate()}
+        total={selectedTotal}
+        visible={confirmVisible}
+      />
     </View>
+  );
+}
+
+function ProductPreviewModal({
+  item,
+  onClose,
+}: {
+  item: MenuItemResponse | null;
+  onClose: () => void;
+}) {
+  if (!item) return null;
+
+  const maxQuantity = getMaxQuantity(item);
+  const isSoldOut = typeof item.remainingStock === "number" && maxQuantity === 0;
+
+  const CATEGORY_LABEL: Record<string, string> = {
+    ENSALADA: "Ensalada",
+    MINUTA: "Minuta",
+    PLATO: "Plato",
+  };
+
+  return (
+    <Modal animationType="slide" onRequestClose={onClose} visible statusBarTranslucent>
+      <SafeAreaView edges={["top"]} style={styles.previewRoot}>
+        {/* Photo */}
+        <View style={styles.previewPhotoWrap}>
+          {item.photoUrl ? (
+            <Image
+              resizeMode="cover"
+              source={{ uri: item.photoUrl }}
+              style={styles.previewPhoto}
+            />
+          ) : (
+            <View style={[styles.previewPhoto, styles.previewPhotoFallback]}>
+              <Text style={styles.previewPhotoFallbackText}>Sin foto</Text>
+            </View>
+          )}
+          {/* Close button over photo */}
+          <Pressable
+            hitSlop={10}
+            onPress={onClose}
+            style={({ pressed }) => [styles.previewClose, pressed && { opacity: 0.7 }]}
+          >
+            <X color={colors.ink} size={18} strokeWidth={2} />
+          </Pressable>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.previewContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Category badge */}
+          <View style={styles.previewBadgeRow}>
+            <View style={styles.previewBadge}>
+              <Text style={styles.previewBadgeText}>
+                {CATEGORY_LABEL[item.category] ?? item.category}
+              </Text>
+            </View>
+            {isSoldOut && (
+              <View style={styles.previewBadgeSoldOut}>
+                <Text style={styles.previewBadgeSoldOutText}>Sin stock</Text>
+              </View>
+            )}
+            {!isSoldOut && typeof item.remainingStock === "number" && (
+              <View style={styles.previewBadgeStock}>
+                <Text style={styles.previewBadgeStockText}>
+                  Quedan {item.remainingStock}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={styles.previewName}>{item.name}</Text>
+          <Text style={styles.previewPrice}>{formatMoney(item.price)}</Text>
+
+          {!!item.description && (
+            <>
+              <View style={styles.previewDivider} />
+              <Text style={styles.previewDescriptionLabel}>Descripción</Text>
+              <Text style={styles.previewDescription}>{item.description}</Text>
+            </>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+function ConfirmOrderModal({
+  visible,
+  items,
+  total,
+  loading,
+  onConfirm,
+  onCancel,
+}: {
+  visible: boolean;
+  items: { id: string; name: string; quantity: number; unitPrice: number }[];
+  total: number;
+  loading: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const sheetAnim = useRef(new Animated.Value(300)).current;
+
+  useEffect(() => {
+    if (visible) {
+      sheetAnim.setValue(300);
+      Animated.spring(sheetAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        speed: 18,
+        bounciness: 2,
+      }).start();
+    }
+  }, [visible, sheetAnim]);
+
+  return (
+    <Modal
+      animationType="fade"
+      onRequestClose={onCancel}
+      statusBarTranslucent
+      transparent
+      visible={visible}
+    >
+      <Pressable onPress={onCancel} style={styles.modalOverlay}>
+        <Animated.View style={{ transform: [{ translateY: sheetAnim }] }}>
+          <Pressable onPress={() => {}} style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Confirmá tu pedido</Text>
+            <Text style={styles.modalSubtitle}>
+              Revisá los items antes de confirmar. No podrás cancelarlo después.
+            </Text>
+
+            <View style={styles.modalItems}>
+              {items.map((item) => (
+                <View key={item.id} style={styles.modalItemRow}>
+                  <Text style={styles.modalItemQty}>×{item.quantity}</Text>
+                  <Text style={styles.modalItemName}>{item.name}</Text>
+                  <Text style={styles.modalItemPrice}>
+                    {formatMoney(item.quantity * item.unitPrice)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.modalDivider} />
+
+            <View style={styles.modalTotalRow}>
+              <Text style={styles.modalTotalLabel}>Total</Text>
+              <Text style={styles.modalTotalAmount}>{formatMoney(total)}</Text>
+            </View>
+
+            <View style={styles.modalActions}>
+              <Button onPress={onCancel} title="Cancelar" variant="ghost" />
+              <Button
+                icon={ShoppingBag}
+                loading={loading}
+                onPress={onConfirm}
+                style={styles.modalConfirmButton}
+                title="Confirmar"
+              />
+            </View>
+          </Pressable>
+        </Animated.View>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -274,43 +462,71 @@ function HayBaleIllustration() {
 function MenuItemCard({
   item,
   onChange,
+  onPreview,
   quantity,
 }: {
   item: MenuItemResponse;
   onChange: (quantity: number) => void;
+  onPreview: () => void;
   quantity: number;
 }) {
   const hasStockLimit = typeof item.remainingStock === "number";
   const maxQuantity = getMaxQuantity(item);
   const isSoldOut = hasStockLimit && maxQuantity === 0;
-  const canDecrease = quantity > 0;
-  const canIncrease = quantity < maxQuantity;
-  const meta = `${formatMoney(item.price)}${
-    hasStockLimit ? ` · ${isSoldOut ? "Sin stock" : `Stock: ${item.remainingStock}`}` : ""
-  }`;
   const isSelected = quantity > 0;
 
   return (
-    <Card style={styles.itemCard} variant={isSelected ? "warm" : "elevated"}>
-      <View style={styles.itemMainRow}>
-        {item.photoUrl ? (
-          <Image source={{ uri: item.photoUrl }} style={styles.itemImage} />
-        ) : (
-          <View style={styles.itemImageFallback}>
-            <ImageOff color={colors.muted} size={22} strokeWidth={2.4} />
-          </View>
-        )}
-        <View style={styles.itemBody}>
-          <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={[styles.itemMeta, isSoldOut && styles.soldOutText]}>{meta}</Text>
+    <View style={[styles.itemCard, isSelected && styles.itemCardSelected]}>
+      {/* Tappable area: photo + info → opens preview */}
+      <Pressable onPress={onPreview} style={styles.itemTappable}>
+        {/* Photo banner */}
+        <View>
+          {item.photoUrl ? (
+            <Image resizeMode="cover" source={{ uri: item.photoUrl }} style={styles.itemPhoto} />
+          ) : (
+            <View style={styles.itemPhotoFallback}>
+              <Text style={styles.itemPhotoFallbackText}>Sin foto</Text>
+            </View>
+          )}
+          {isSoldOut && (
+            <View style={styles.soldOutOverlay}>
+              <Text style={styles.soldOutOverlayText}>Sin stock</Text>
+            </View>
+          )}
+          {isSelected && (
+            <View style={styles.qtyBadge}>
+              <Text style={styles.qtyBadgeText}>×{quantity}</Text>
+            </View>
+          )}
         </View>
-      </View>
+
+        {/* Info */}
+        <View style={styles.itemContent}>
+          <Text numberOfLines={2} style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.itemPrice}>{formatMoney(item.price)}</Text>
+          {hasStockLimit && (
+            <Text style={isSoldOut ? styles.stockOut : styles.stockCount}>
+              {isSoldOut ? "Sin stock" : `Quedan ${item.remainingStock}`}
+            </Text>
+          )}
+        </View>
+      </Pressable>
+
+      {/* Stepper — outside Pressable so no event conflict */}
       <View style={styles.stepper}>
-        <StepperButton disabled={!canDecrease} icon="minus" onPress={() => onChange(quantity - 1)} />
+        <StepperButton
+          disabled={quantity === 0 || isSoldOut}
+          icon="minus"
+          onPress={() => onChange(quantity - 1)}
+        />
         <Text style={styles.quantity}>{quantity}</Text>
-        <StepperButton disabled={!canIncrease} icon="plus" onPress={() => onChange(quantity + 1)} />
+        <StepperButton
+          disabled={isSoldOut || quantity >= maxQuantity}
+          icon="plus"
+          onPress={() => onChange(quantity + 1)}
+        />
       </View>
-    </Card>
+    </View>
   );
 }
 
@@ -326,33 +542,25 @@ function StepperButton({
   const Icon = icon === "minus" ? Minus : Plus;
   const scale = useRef(new Animated.Value(1)).current;
 
-  const onPressIn = () => {
+  const onPressIn = () =>
     Animated.spring(scale, { toValue: 0.88, useNativeDriver: true, speed: 22, bounciness: 0 }).start();
-  };
-  const onPressOut = () => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 3 }).start();
-  };
+  const onPressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 13, bounciness: 2 }).start();
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      onPress={onPress}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
-    >
+    <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
       <Animated.View
         style={[
           styles.stepperButton,
           icon === "plus" ? styles.stepperButtonAdd : styles.stepperButtonSub,
-          disabled ? styles.stepperButtonDisabled : null,
+          disabled && styles.stepperButtonDisabled,
           { transform: [{ scale }] },
         ]}
       >
         <Icon
           color={icon === "plus" ? colors.onBrand : colors.brandRed}
-          size={18}
-          strokeWidth={2.6}
+          size={16}
+          strokeWidth={1.8}
         />
       </Animated.View>
     </Pressable>
@@ -379,9 +587,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xxxl,
   },
-  skeletonGroup: {
-    gap: spacing.md,
-  },
   statsRow: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -405,24 +610,133 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  closedMessage: {
-    ...typography.body,
-    color: colors.muted,
-    maxWidth: 300,
-    textAlign: "center",
+  // Grid
+  grid: {
+    columnGap: spacing.sm,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: spacing.sm,
   },
-  closedState: {
+  // Food card
+  itemCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    overflow: "hidden",
+    width: "48%",
+    ...shadows.sm,
+  },
+  itemCardSelected: {
+    borderColor: colors.brandRed,
+    borderWidth: 2,
+    ...shadows.brand,
+  },
+  itemPhoto: {
+    aspectRatio: 4 / 3,
+    width: "100%",
+  },
+  itemPhotoFallback: {
     alignItems: "center",
-    gap: spacing.md,
+    aspectRatio: 4 / 3,
+    backgroundColor: colors.surfaceMuted,
     justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xxl,
+    width: "100%",
   },
-  closedTitle: {
-    ...typography.h2,
+  itemPhotoFallbackText: {
+    color: colors.placeholder,
+    fontSize: 11,
+    fontWeight: "500" as const,
+  },
+  soldOutOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(26,28,30,0.55)",
+    bottom: 0,
+    justifyContent: "center",
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  },
+  soldOutOverlayText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800" as const,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  qtyBadge: {
+    backgroundColor: colors.brandRed,
+    borderRadius: radius.pill,
+    bottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    position: "absolute",
+    right: spacing.sm,
+    ...shadows.brand,
+  },
+  qtyBadgeText: {
+    color: colors.onBrand,
+    fontSize: 13,
+    fontWeight: "800" as const,
+  },
+  itemContent: {
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  itemName: {
     color: colors.ink,
+    fontSize: 14,
+    fontWeight: "700" as const,
+    letterSpacing: 0,
+    lineHeight: 19,
+  },
+  itemPrice: {
+    ...typography.captionStrong,
+    color: colors.brandRed,
+  },
+  stepper: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  stepperButton: {
+    alignItems: "center",
+    borderRadius: radius.md,
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
+  stepperButtonAdd: {
+    backgroundColor: colors.brandRed,
+  },
+  stepperButtonDisabled: {
+    opacity: 0.35,
+  },
+  stepperButtonSub: {
+    backgroundColor: colors.surface,
+    borderColor: colors.redBorder,
+    borderWidth: 1.5,
+  },
+  quantity: {
+    ...typography.bodyStrong,
+    color: colors.ink,
+    fontSize: 15,
+    minWidth: 20,
     textAlign: "center",
   },
+  // Notices
+  notice: {
+    gap: spacing.sm,
+  },
+  noticeText: {
+    ...typography.body,
+    color: colors.inkSoft,
+  },
+  // Checkout
   checkout: {
     alignItems: "stretch",
     gap: spacing.md,
@@ -445,6 +759,222 @@ const styles = StyleSheet.create({
     ...typography.h1,
     color: colors.ink,
   },
+  // Closed state
+  closedState: {
+    alignItems: "center",
+    gap: spacing.md,
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xxl,
+  },
+  closedTitle: {
+    ...typography.h2,
+    color: colors.ink,
+    textAlign: "center",
+  },
+  closedMessage: {
+    ...typography.body,
+    color: colors.muted,
+    maxWidth: 300,
+    textAlign: "center",
+  },
+  // Stock
+  stockCount: {
+    ...typography.caption,
+    color: colors.muted,
+  },
+  stockOut: {
+    ...typography.caption,
+    color: colors.brandRed,
+    fontWeight: "700" as const,
+  },
+  // Card tappable area
+  itemTappable: {
+    flex: 1,
+  },
+  // Product preview modal
+  previewRoot: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
+  previewPhotoWrap: {
+    position: "relative",
+  },
+  previewPhoto: {
+    aspectRatio: 4 / 3,
+    width: "100%",
+  },
+  previewPhotoFallback: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    justifyContent: "center",
+  },
+  previewPhotoFallbackText: {
+    ...typography.body,
+    color: colors.placeholder,
+  },
+  previewClose: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    height: 36,
+    justifyContent: "center",
+    position: "absolute",
+    right: spacing.md,
+    top: spacing.md,
+    width: 36,
+    ...shadows.md,
+  },
+  previewContent: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+  },
+  previewBadgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+  },
+  previewBadge: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  previewBadgeText: {
+    ...typography.caption,
+    color: colors.muted,
+    fontWeight: "600" as const,
+  },
+  previewBadgeSoldOut: {
+    backgroundColor: colors.redSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  previewBadgeSoldOutText: {
+    ...typography.caption,
+    color: colors.brandRed,
+    fontWeight: "700" as const,
+  },
+  previewBadgeStock: {
+    backgroundColor: colors.successSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  previewBadgeStockText: {
+    ...typography.caption,
+    color: colors.success,
+    fontWeight: "600" as const,
+  },
+  previewName: {
+    ...typography.h1,
+    color: colors.ink,
+  },
+  previewPrice: {
+    ...typography.h2,
+    color: colors.brandRed,
+  },
+  previewDivider: {
+    backgroundColor: colors.border,
+    height: 1,
+    marginVertical: spacing.xs,
+  },
+  previewDescriptionLabel: {
+    ...typography.captionStrong,
+    color: colors.muted,
+    textTransform: "uppercase",
+  },
+  previewDescription: {
+    ...typography.body,
+    color: colors.inkSoft,
+    lineHeight: 26,
+  },
+  // Confirm modal
+  modalOverlay: {
+    backgroundColor: "rgba(0,0,0,0.45)",
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
+    gap: spacing.sm,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+    ...shadows.lg,
+  },
+  modalHandle: {
+    alignSelf: "center",
+    backgroundColor: colors.border,
+    borderRadius: radius.pill,
+    height: 4,
+    marginBottom: spacing.xs,
+    width: 40,
+  },
+  modalTitle: {
+    ...typography.h2,
+    color: colors.ink,
+    marginTop: spacing.xs,
+  },
+  modalSubtitle: {
+    ...typography.body,
+    color: colors.muted,
+    marginBottom: spacing.xs,
+  },
+  modalItems: {
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  modalItemRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  modalItemQty: {
+    ...typography.captionStrong,
+    color: colors.brandRed,
+    minWidth: 28,
+  },
+  modalItemName: {
+    ...typography.body,
+    color: colors.ink,
+    flex: 1,
+  },
+  modalItemPrice: {
+    ...typography.captionStrong,
+    color: colors.inkSoft,
+  },
+  modalDivider: {
+    backgroundColor: colors.border,
+    height: 1,
+    marginVertical: spacing.xs,
+  },
+  modalTotalRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
+  },
+  modalTotalLabel: {
+    ...typography.bodyStrong,
+    color: colors.muted,
+  },
+  modalTotalAmount: {
+    ...typography.h2,
+    color: colors.ink,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  modalConfirmButton: {
+    flex: 1,
+  },
+  // Hay bale
   hayBale: {
     alignItems: "center",
     backgroundColor: colors.yellow,
@@ -522,84 +1052,5 @@ const styles = StyleSheet.create({
     left: 22,
     top: 28,
     width: 82,
-  },
-  itemBody: {
-    flex: 1,
-    gap: spacing.xs,
-    minWidth: 0,
-  },
-  itemCard: {
-    gap: spacing.md,
-  },
-  itemImage: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
-    height: 72,
-    width: 72,
-  },
-  itemImageFallback: {
-    alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
-    height: 72,
-    justifyContent: "center",
-    width: 72,
-  },
-  itemMeta: {
-    ...typography.caption,
-    color: colors.muted,
-  },
-  itemMainRow: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  itemName: {
-    ...typography.bodyStrong,
-    color: colors.ink,
-    flexShrink: 1,
-  },
-  list: {
-    gap: spacing.md,
-  },
-  notice: {
-    gap: spacing.sm,
-  },
-  noticeText: {
-    ...typography.body,
-    color: colors.inkSoft,
-  },
-  quantity: {
-    ...typography.bodyStrong,
-    color: colors.ink,
-    minWidth: 28,
-    textAlign: "center",
-  },
-  soldOutText: {
-    color: colors.warning,
-  },
-  stepper: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.xs,
-    justifyContent: "flex-end",
-  },
-  stepperButton: {
-    alignItems: "center",
-    borderRadius: radius.md,
-    height: 36,
-    justifyContent: "center",
-    width: 36,
-  },
-  stepperButtonAdd: {
-    backgroundColor: colors.brandRed,
-  },
-  stepperButtonDisabled: {
-    opacity: 0.38,
-  },
-  stepperButtonSub: {
-    backgroundColor: colors.surface,
-    borderColor: colors.brandRedLight,
-    borderWidth: 1.5,
   },
 });

@@ -4,7 +4,7 @@ import type { LucideIcon } from "lucide-react-native";
 import { colors, radius, shadows, spacing, typography } from "../theme";
 import { usePressAnimation } from "../hooks/usePressAnimation";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "accent" | "success";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "accent" | "success" | "danger";
 type ButtonSize = "medium" | "small";
 
 type ButtonProps = {
@@ -90,6 +90,11 @@ const styles = StyleSheet.create({
   ghost: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
+    borderWidth: 1,
+  },
+  danger: {
+    backgroundColor: colors.redSoft,
+    borderColor: colors.redBorder,
     borderWidth: 1,
   },
   success: {
