@@ -3,10 +3,10 @@ import { Animated, Easing, Image, Modal, Pressable, RefreshControl, ScrollView, 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { Minus, Plus, RefreshCw, ShoppingBag, X } from "lucide-react-native";
+import { Minus, Plus, RefreshCw, ShoppingBag, UtensilsCrossed, X } from "lucide-react-native";
 
 import { employeeApi } from "../../src/api/employee";
-import { getApiErrorMessage } from "../../src/api/client";
+import { ApiError, getApiErrorMessage } from "../../src/api/client";
 import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
 import { Hero } from "../../src/components/Hero";
@@ -94,12 +94,16 @@ export default function EmployeeMenuScreen() {
     [selectedItems],
   );
 
-  if (menuQuery.isError) {
+  const menuError = menuQuery.error;
+  const isMenuNotFound =
+    menuQuery.isError && menuError instanceof ApiError && menuError.status === 404;
+
+  if (menuQuery.isError && !isMenuNotFound) {
     return (
       <ErrorState
         actionLabel="Reintentar"
         icon={RefreshCw}
-        message={getApiErrorMessage(menuQuery.error)}
+        message={getApiErrorMessage(menuError)}
         onAction={() => menuQuery.refetch()}
         title="No pudimos cargar el menú"
       />
@@ -119,13 +123,19 @@ export default function EmployeeMenuScreen() {
         ? "Elegí al menos un plato"
         : null;
   const isLoading = menuQuery.isLoading || currentOrderQuery.isLoading;
-  const heroEyebrow = menu?.companyName ?? "Menú global";
-  const heroTitle = menu ? formatMenuDate(menu.date) : "Cargando…";
+  const heroEyebrow = menu?.companyName ?? "Menú";
+  const heroTitle = menu
+    ? formatMenuDate(menu.date)
+    : isMenuNotFound
+      ? formatMenuDate(date)
+      : "Cargando…";
   const heroSubtitle = menu
     ? menu.canOrder
       ? `Cierra ${menu.orderClosesAt}`
       : `Cerró ${menu.orderClosesAt}`
-    : "";
+    : isMenuNotFound
+      ? "Aún sin publicar"
+      : "";
 
   return (
     <View style={styles.root}>
@@ -163,6 +173,8 @@ export default function EmployeeMenuScreen() {
             <Skeleton.Card height={220} style={{ width: "48%" }} />
             <Skeleton.Card height={220} style={{ width: "48%" }} />
           </View>
+        ) : isMenuNotFound ? (
+          <NoMenuPublishedState onRetry={() => menuQuery.refetch()} />
         ) : menu && !menu.canOrder && !hasCurrentOrder ? (
           <ClosedMenuState />
         ) : (
@@ -419,7 +431,7 @@ function StatChip({ label, caption }: { label: string; caption: string }) {
 function ClosedMenuState() {
   return (
     <View style={styles.closedState}>
-      <HayBaleIllustration />
+      <MenuIllustration />
       <Text style={styles.closedTitle}>El menú de hoy ya cerró</Text>
       <Text style={styles.closedMessage}>
         Volvé mañana para ver los platos disponibles y hacer tu pedido.
@@ -428,35 +440,28 @@ function ClosedMenuState() {
   );
 }
 
-function HayBaleIllustration() {
-  const sway = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(sway, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(sway, { toValue: 0, duration: 2400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ])
-    );
-    anim.start();
-    return () => anim.stop();
-  }, [sway]);
-
-  const rotation = sway.interpolate({ inputRange: [0, 1], outputRange: ["-2deg", "2deg"] });
-
+function NoMenuPublishedState({ onRetry }: { onRetry: () => void }) {
   return (
-    <Animated.View style={[styles.hayScene, { transform: [{ rotate: rotation }] }]}>
-      <View style={styles.hayShadow} />
-      <View style={styles.hayBale}>
-        <View style={[styles.hayStripe, styles.hayStripeTop]} />
-        <View style={[styles.hayStripe, styles.hayStripeMiddle]} />
-        <View style={[styles.hayStripe, styles.hayStripeBottom]} />
-        <View style={styles.hayRing} />
-      </View>
-      <View style={styles.hayStemLeft} />
-      <View style={styles.hayStemRight} />
-    </Animated.View>
+    <View style={styles.closedState}>
+      <MenuIllustration />
+      <Text style={styles.closedTitle}>Todavía no hay menú</Text>
+      <Text style={styles.closedMessage}>
+        El equipo aún no publicó el menú de hoy. Volvé en un rato.
+      </Text>
+      <Pressable
+        hitSlop={10}
+        onPress={onRetry}
+        style={({ pressed }) => [styles.actionLink, pressed && styles.actionLinkPressed]}
+      >
+        <RefreshCw color={colors.brandRed} size={18} strokeWidth={2} />
+        <Text style={styles.actionLinkText}>Refrescar</Text>
+      </Pressable>
+    </View>
   );
+}
+
+function MenuIllustration() {
+  return <UtensilsCrossed color={colors.muted} size={72} strokeWidth={1.6} />;
 }
 
 function MenuItemCard({
@@ -974,83 +979,19 @@ const styles = StyleSheet.create({
   modalConfirmButton: {
     flex: 1,
   },
-  // Hay bale
-  hayBale: {
+  actionLink: {
     alignItems: "center",
-    backgroundColor: colors.yellow,
-    borderColor: colors.warning,
-    borderRadius: 42,
-    borderWidth: 3,
-    height: 108,
-    justifyContent: "center",
-    overflow: "hidden",
-    width: 142,
+    flexDirection: "row",
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  hayRing: {
-    borderColor: colors.warning,
-    borderRadius: 34,
-    borderWidth: 3,
-    height: 56,
+  actionLinkPressed: {
     opacity: 0.55,
-    width: 56,
   },
-  hayScene: {
-    alignItems: "center",
-    height: 132,
-    justifyContent: "flex-end",
-    width: 176,
-  },
-  hayShadow: {
-    backgroundColor: colors.borderStrong,
-    borderRadius: 999,
-    bottom: 4,
-    height: 14,
-    opacity: 0.6,
-    position: "absolute",
-    width: 132,
-  },
-  hayStemLeft: {
-    backgroundColor: colors.warning,
-    borderRadius: 999,
-    height: 46,
-    left: 24,
-    opacity: 0.7,
-    position: "absolute",
-    top: 26,
-    transform: [{ rotate: "-28deg" }],
-    width: 4,
-  },
-  hayStemRight: {
-    backgroundColor: colors.warning,
-    borderRadius: 999,
-    height: 42,
-    opacity: 0.65,
-    position: "absolute",
-    right: 26,
-    top: 28,
-    transform: [{ rotate: "28deg" }],
-    width: 4,
-  },
-  hayStripe: {
-    backgroundColor: colors.warning,
-    borderRadius: 999,
-    height: 4,
-    opacity: 0.5,
-    position: "absolute",
-  },
-  hayStripeBottom: {
-    bottom: 28,
-    right: 14,
-    width: 88,
-  },
-  hayStripeMiddle: {
-    left: 12,
-    top: 52,
-    width: 116,
-  },
-  hayStripeTop: {
-    left: 22,
-    top: 28,
-    width: 82,
+  actionLinkText: {
+    ...typography.bodyStrong,
+    color: colors.brandRed,
   },
 });

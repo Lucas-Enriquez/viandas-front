@@ -1,6 +1,5 @@
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
-import { Building2, Link2, LogOut, Mail, ShieldCheck, UserRound } from "lucide-react-native";
+import { Building2, LogOut, Mail, ShieldCheck, UserRound } from "lucide-react-native";
 
 import { useAuth } from "../../src/auth/AuthContext";
 import { Card } from "../../src/components/Card";
@@ -8,7 +7,6 @@ import { usePressAnimation } from "../../src/hooks/usePressAnimation";
 import { Hero } from "../../src/components/Hero";
 import { colors, radius, spacing, typography } from "../../src/theme";
 import { formatRole } from "../../src/utils/format";
-import { Button } from "../../src/components/Button";
 
 export default function AccountScreen() {
   const { session, signOut } = useAuth();
@@ -61,13 +59,6 @@ export default function AccountScreen() {
             value={session?.user.id?.slice(0, 8) ?? "—"}
           />
         </Card>
-
-        <Button
-          icon={Link2}
-          onPress={() => router.push("/invitation")}
-          title="Aceptar invitación"
-          variant="ghost"
-        />
 
         <LogoutButton onPress={signOut} />
       </ScrollView>

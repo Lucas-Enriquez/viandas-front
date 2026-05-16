@@ -12,9 +12,9 @@ import {
 } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { ClipboardCheck, MessageSquare, RefreshCw, ShoppingBag, Trash2, X } from "lucide-react-native";
+import { ClipboardCheck, MessageSquare, RefreshCw, ShoppingBag, Trash2, UtensilsCrossed, X } from "lucide-react-native";
 
-import { getApiErrorMessage } from "../../src/api/client";
+import { ApiError, getApiErrorMessage } from "../../src/api/client";
 import { employeeApi } from "../../src/api/employee";
 import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
@@ -110,12 +110,16 @@ export default function EmployeeOrderScreen() {
     });
   };
 
-  if (orderQuery.isError) {
+  const orderError = orderQuery.error;
+  const isOrderNotFound =
+    orderQuery.isError && orderError instanceof ApiError && orderError.status === 404;
+
+  if (orderQuery.isError && !isOrderNotFound) {
     return (
       <ErrorState
         actionLabel="Reintentar"
         icon={RefreshCw}
-        message={getApiErrorMessage(orderQuery.error)}
+        message={getApiErrorMessage(orderError)}
         onAction={() => orderQuery.refetch()}
         title="No pudimos cargar tu pedido"
       />
@@ -126,11 +130,14 @@ export default function EmployeeOrderScreen() {
   const order = current?.order;
   const canStillOrder = current?.canOrder === true;
   const isLoading = orderQuery.isLoading;
+  const showEmpty = isOrderNotFound || (orderQuery.isSuccess && !order);
 
   const heroTitle = order ? `Pedido ${order.id.slice(0, 8)}` : "Mi pedido";
   const heroSubtitle = order
     ? statusLabel(order.status)
-    : current?.message ?? "Cargando…";
+    : isOrderNotFound
+      ? "Sin menú para esta fecha"
+      : current?.message ?? "Cargando…";
 
   return (
     <View style={styles.root}>
@@ -155,22 +162,25 @@ export default function EmployeeOrderScreen() {
             <Skeleton.Card height={180} />
             <Skeleton.Card height={120} />
           </View>
-        ) : !order ? (
-          <Card style={styles.emptyCard}>
-            <View style={styles.emptyIcon}>
-              <ShoppingBag color={colors.brandRed} size={32} strokeWidth={1.8} />
-            </View>
+        ) : showEmpty ? (
+          <View style={styles.emptyState}>
+            <UtensilsCrossed color={colors.muted} size={72} strokeWidth={1.6} />
             <Text style={styles.emptyTitle}>Sin pedido</Text>
             <Text style={styles.emptyMessage}>
-              {current?.message ?? "Todavía no hiciste un pedido para este menú."}
+              {isOrderNotFound
+                ? "No hay un menú para esta fecha."
+                : current?.message ?? "Todavía no hiciste un pedido para este menú."}
             </Text>
-            <Button
+            <Pressable
+              hitSlop={10}
               onPress={() => router.push("/employee-menu")}
-              title="Ver menú"
-              variant="secondary"
-            />
-          </Card>
-        ) : (
+              style={({ pressed }) => [styles.actionLink, pressed && styles.actionLinkPressed]}
+            >
+              <ShoppingBag color={colors.brandRed} size={18} strokeWidth={2} />
+              <Text style={styles.actionLinkText}>Ver menú</Text>
+            </Pressable>
+          </View>
+        ) : order ? (
           <>
             <Card style={styles.card}>
               <View style={styles.cardHeader}>
@@ -208,7 +218,7 @@ export default function EmployeeOrderScreen() {
               )}
             </View>
           </>
-        )}
+        ) : null}
       </ScrollView>
 
       <CommentModal
@@ -381,18 +391,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 44,
   },
-  emptyCard: {
+  emptyState: {
     alignItems: "center",
     gap: spacing.md,
-    paddingVertical: spacing.xl,
-  },
-  emptyIcon: {
-    alignItems: "center",
-    backgroundColor: colors.redSoft,
-    borderRadius: radius.lg,
-    height: 72,
     justifyContent: "center",
-    width: 72,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xxl,
   },
   emptyTitle: {
     ...typography.h2,
@@ -404,6 +408,21 @@ const styles = StyleSheet.create({
     color: colors.muted,
     maxWidth: 300,
     textAlign: "center",
+  },
+  actionLink: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  actionLinkPressed: {
+    opacity: 0.55,
+  },
+  actionLinkText: {
+    ...typography.bodyStrong,
+    color: colors.brandRed,
   },
   card: {
     gap: spacing.md,
