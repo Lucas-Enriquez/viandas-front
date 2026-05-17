@@ -38,6 +38,14 @@ export default function EmployeeOrderScreen() {
   const orderQuery = useQuery({
     queryFn: () => employeeApi.currentOrder(date),
     queryKey: ["employee", "current-order", date],
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data?.order) return 60_000;
+      const status = data.order.status;
+      if (status === "OUT_FOR_DELIVERY" || status === "NEARBY") return 15_000;
+      if (status === "RECEIVED" || status === "PREPARING") return 60_000;
+      return false;
+    },
   });
 
   const cancelMutation = useMutation({
@@ -186,6 +194,16 @@ export default function EmployeeOrderScreen() {
               <View style={styles.cardHeader}>
                 <StatusPill label={statusLabel(order.status)} tone={statusTone(order.status)} />
                 <Text style={styles.total}>{formatMoney(order.totalAmount)}</Text>
+              </View>
+
+              <View style={styles.paymentRow}>
+                <StatusPill
+                  label={order.paid ? "Pagado" : "Pendiente de pago"}
+                  tone={order.paid ? "success" : "warning"}
+                />
+                {order.paid && !!order.paymentNote && (
+                  <Text style={styles.paymentNote}>{order.paymentNote}</Text>
+                )}
               </View>
 
               <View style={styles.items}>
@@ -423,6 +441,14 @@ const styles = StyleSheet.create({
   actionLinkText: {
     ...typography.bodyStrong,
     color: colors.brandRed,
+  },
+  paymentRow: {
+    gap: 4,
+  },
+  paymentNote: {
+    ...typography.caption,
+    color: colors.muted,
+    paddingHorizontal: spacing.xs,
   },
   card: {
     gap: spacing.md,

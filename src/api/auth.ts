@@ -17,4 +17,20 @@ export const authApi = {
       method: "POST",
     });
   },
+
+  forgotPassword(email: string) {
+    return apiFetch<null>("/auth/forgot-password", {
+      auth: false,
+      body: JSON.stringify({ email }),
+      method: "POST",
+    });
+  },
+
+  resetPassword(token: string, newPassword: string) {
+    return apiFetch<null>("/auth/reset-password", {
+      auth: false,
+      body: JSON.stringify({ token, newPassword }),
+      method: "POST",
+    });
+  },
 };

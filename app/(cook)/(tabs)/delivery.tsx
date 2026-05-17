@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { CheckCircle2, MapPin, RefreshCw, Signal, Truck } from "lucide-react-native";
 
@@ -15,29 +14,27 @@ import { isDeliveryTrackingActive, stopDeliveryTracking } from "../../../src/ser
 import { useToast } from "../../../src/providers/ToastProvider";
 import { getActiveDelivery } from "../../../src/storage";
 import { colors, radius, shadows, spacing, typography } from "../../../src/theme";
-import type { ActiveDeliverySession, DeliveryPublicSignal } from "../../../src/types";
+import type { DeliveryPublicSignal } from "../../../src/types";
 import { formatRelativeDateTime } from "../../../src/utils/date";
 
 export default function DeliveryScreen() {
-  const [activeDelivery, setActiveDelivery] = useState<ActiveDeliverySession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isTracking, setIsTracking] = useState(false);
+  const queryClient = useQueryClient();
   const toast = useToast();
 
-  const loadState = async () => {
-    setIsLoading(true);
-    const [delivery, tracking] = await Promise.all([
-      getActiveDelivery(),
-      isDeliveryTrackingActive(),
-    ]);
-    setActiveDelivery(delivery);
-    setIsTracking(tracking);
-    setIsLoading(false);
-  };
+  const activeDeliveryQuery = useQuery({
+    queryFn: async () => {
+      const [delivery, tracking] = await Promise.all([
+        getActiveDelivery(),
+        isDeliveryTrackingActive(),
+      ]);
+      return { delivery, tracking };
+    },
+    queryKey: ["delivery", "active"],
+  });
 
-  useEffect(() => {
-    loadState();
-  }, []);
+  const activeDelivery = activeDeliveryQuery.data?.delivery ?? null;
+  const isTracking = activeDeliveryQuery.data?.tracking ?? false;
+  const isLoading = activeDeliveryQuery.isLoading;
 
   const finishMutation = useMutation({
     mutationFn: async () => {
@@ -56,6 +53,8 @@ export default function DeliveryScreen() {
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["delivery", "active"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", "today"] });
       toast.show({
         title: "Reparto finalizado",
         message: "Marcamos el delivery como entregado.",
@@ -154,7 +153,7 @@ export default function DeliveryScreen() {
             <View style={styles.actions}>
               <Button
                 icon={RefreshCw}
-                onPress={loadState}
+                onPress={() => activeDeliveryQuery.refetch()}
                 title="Actualizar"
                 variant="secondary"
               />

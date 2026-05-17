@@ -1,11 +1,12 @@
 import { useMemo } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import {
   Ban,
   CheckCircle2,
   ChefHat,
+  Circle,
   Clock,
   PackageCheck,
   RefreshCw,
@@ -60,6 +61,21 @@ export default function OrdersScreen() {
     },
   });
 
+  const markPaidMutation = useMutation({
+    mutationFn: ({ id, paid }: { id: string; paid: boolean }) =>
+      ordersApi.markPaid(id, paid),
+    onError: (error) => {
+      toast.show({
+        title: "No pudimos actualizar el pago",
+        message: getApiErrorMessage(error),
+        tone: "error",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders", "today"] });
+    },
+  });
+
   const startDeliveryMutation = useMutation({
     mutationFn: async ({ companyId, menuId }: { companyId: string; menuId: string }) => {
       const session = await deliveryApi.start({ companyId, menuId });
@@ -75,6 +91,7 @@ export default function OrdersScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders", "today"] });
+      queryClient.invalidateQueries({ queryKey: ["delivery", "active"] });
       router.replace("/delivery");
     },
   });
@@ -109,7 +126,7 @@ export default function OrdersScreen() {
         tone="ink"
         eyebrow="Pedidos"
         title="Pedidos de hoy"
-        subtitle="Se actualiza automáticamente cada 20s."
+        subtitle="Actualización en vivo."
       >
         <View style={styles.statsRow}>
           <StatChip label={String(orders.length)} caption={orders.length === 1 ? "pedido" : "pedidos"} />
@@ -186,9 +203,13 @@ export default function OrdersScreen() {
                       {groupOrders.map((order) => (
                         <OrderCard
                           isMutating={orderActionMutation.isPending}
+                          isPaymentMutating={markPaidMutation.isPending}
                           key={order.id}
                           onAction={(action) =>
                             orderActionMutation.mutate({ action, id: order.id })
+                          }
+                          onTogglePaid={() =>
+                            markPaidMutation.mutate({ id: order.id, paid: !order.paid })
                           }
                           order={order}
                         />
@@ -216,11 +237,15 @@ function StatChip({ label, caption }: { label: string; caption: string }) {
 
 function OrderCard({
   isMutating,
+  isPaymentMutating,
   onAction,
+  onTogglePaid,
   order,
 }: {
   isMutating: boolean;
+  isPaymentMutating: boolean;
   onAction: (action: OrderAction) => void;
+  onTogglePaid: () => void;
   order: OrderResponse;
 }) {
   const actions = getActionsForStatus(order.status);
@@ -254,6 +279,31 @@ function OrderCard({
             <Text style={styles.itemPrice}>{formatMoney(item.unitPrice)}</Text>
           </View>
         ))}
+      </View>
+
+      <View style={styles.paidBlock}>
+        <Pressable
+          disabled={isPaymentMutating}
+          hitSlop={6}
+          onPress={onTogglePaid}
+          style={({ pressed }) => [
+            styles.paidPill,
+            order.paid ? styles.paidPillOn : styles.paidPillOff,
+            (pressed || isPaymentMutating) && { opacity: 0.6 },
+          ]}
+        >
+          {order.paid ? (
+            <CheckCircle2 color={colors.success} size={16} strokeWidth={2} />
+          ) : (
+            <Circle color={colors.muted} size={16} strokeWidth={2} />
+          )}
+          <Text style={order.paid ? styles.paidPillTextOn : styles.paidPillTextOff}>
+            {order.paid ? "Pagado" : "Marcar como pagado"}
+          </Text>
+        </Pressable>
+        {order.paid && !!order.paymentNote && (
+          <Text style={styles.paidNote}>{order.paymentNote}</Text>
+        )}
       </View>
 
       {actions.length > 0 && (
@@ -473,5 +523,39 @@ const styles = StyleSheet.create({
   total: {
     ...typography.bodyStrong,
     color: colors.brandRed,
+  },
+  paidBlock: {
+    gap: 2,
+  },
+  paidPill: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  paidPillOn: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.success,
+  },
+  paidPillOff: {
+    backgroundColor: colors.surface,
+    borderColor: colors.borderStrong,
+  },
+  paidPillTextOn: {
+    ...typography.captionStrong,
+    color: colors.success,
+  },
+  paidPillTextOff: {
+    ...typography.captionStrong,
+    color: colors.muted,
+  },
+  paidNote: {
+    ...typography.caption,
+    color: colors.muted,
+    paddingHorizontal: spacing.xs,
   },
 });

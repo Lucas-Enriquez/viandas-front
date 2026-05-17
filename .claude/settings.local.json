@@ -8,7 +8,10 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "mcp__plugin_design_figma__get_metadata",
+      "mcp__plugin_design_figma__get_screenshot",
+      "mcp__plugin_design_figma__get_design_context"
     ]
   }
 }

@@ -2,6 +2,7 @@ import { Redirect, Stack } from "expo-router";
 
 import { useAuth } from "../../src/auth/AuthContext";
 import { LoadingState } from "../../src/components/StateViews";
+import { CookRealtimeProvider } from "../../src/providers/CookRealtimeProvider";
 import { colors } from "../../src/theme";
 
 export default function CookLayout() {
@@ -20,11 +21,13 @@ export default function CookLayout() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: colors.background },
-      }}
-    />
+    <CookRealtimeProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      />
+    </CookRealtimeProvider>
   );
 }

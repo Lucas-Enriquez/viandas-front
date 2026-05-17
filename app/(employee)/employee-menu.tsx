@@ -38,6 +38,14 @@ export default function EmployeeMenuScreen() {
   const currentOrderQuery = useQuery({
     queryFn: () => employeeApi.currentOrder(date),
     queryKey: ["employee", "current-order", date],
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data?.order) return 60_000;
+      const status = data.order.status;
+      if (status === "OUT_FOR_DELIVERY" || status === "NEARBY") return 15_000;
+      if (status === "RECEIVED" || status === "PREPARING") return 60_000;
+      return false;
+    },
   });
 
   const createOrderMutation = useMutation({

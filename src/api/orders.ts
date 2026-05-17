@@ -13,4 +13,11 @@ export const ordersApi = {
       method: "PATCH",
     });
   },
+
+  markPaid(orderId: string, paid: boolean, note?: string | null) {
+    return apiFetch<OrderResponse>(`/orders/${orderId}/paid`, {
+      body: JSON.stringify({ paid, note: note ?? undefined }),
+      method: "PATCH",
+    });
+  },
 };

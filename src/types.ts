@@ -136,8 +136,19 @@ export type OrderResponse = {
   id: UUID;
   items: OrderItemResponse[];
   menuId: UUID;
+  paid: boolean;
+  paidAt: string | null;
+  paymentNote: string | null;
   status: OrderStatus;
   totalAmount: number;
+};
+
+export type NotificationPlatform = "ANDROID" | "IOS" | "WEB";
+
+export type NotificationDeviceResponse = {
+  id: UUID;
+  lastSeenAt: string;
+  platform: string;
 };
 
 export type CurrentOrderResponse = {

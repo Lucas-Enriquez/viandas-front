@@ -163,6 +163,13 @@ export default function LoginScreen() {
             onPress={handleLogin}
             title="Ingresar"
           />
+          <Pressable
+            hitSlop={8}
+            onPress={() => router.push("/forgot-password")}
+            style={({ pressed }) => [styles.forgotLink, pressed && { opacity: 0.55 }]}
+          >
+            <Text style={styles.forgotLinkText}>¿Olvidaste tu contraseña?</Text>
+          </Pressable>
           <Button
             icon={UserPlus}
             onPress={() => router.push("/invitation")}
@@ -246,5 +253,13 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.muted,
     textAlign: "center",
+  },
+  forgotLink: {
+    alignSelf: "center",
+    paddingVertical: spacing.xs,
+  },
+  forgotLinkText: {
+    ...typography.captionStrong,
+    color: colors.brandRed,
   },
 });
