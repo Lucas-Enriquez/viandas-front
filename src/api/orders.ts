@@ -20,4 +20,10 @@ export const ordersApi = {
       method: "PATCH",
     });
   },
+
+  markMenuPreparing(menuId: string) {
+    return apiFetch<OrderResponse[]>(`/menus/${menuId}/orders/preparing`, {
+      method: "PATCH",
+    });
+  },
 };

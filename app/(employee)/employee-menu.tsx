@@ -141,9 +141,7 @@ export default function EmployeeMenuScreen() {
     ? menu.canOrder
       ? `Cierra ${menu.orderClosesAt}`
       : `Cerró ${menu.orderClosesAt}`
-    : isMenuNotFound
-      ? "Aún sin publicar"
-      : "";
+    : "";
 
   return (
     <View style={styles.root}>
@@ -454,7 +452,7 @@ function NoMenuPublishedState({ onRetry }: { onRetry: () => void }) {
       <MenuIllustration />
       <Text style={styles.closedTitle}>Todavía no hay menú</Text>
       <Text style={styles.closedMessage}>
-        El equipo aún no publicó el menú de hoy. Volvé en un rato.
+        Todavía no se publicó el menú, vuelva más tarde.
       </Text>
       <Pressable
         hitSlop={10}

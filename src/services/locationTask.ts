@@ -74,7 +74,7 @@ export async function startDeliveryTracking(session: DeliverySessionResponse) {
   await Location.startLocationUpdatesAsync(DELIVERY_LOCATION_TASK, {
     accuracy: Location.Accuracy.Balanced,
     activityType: Location.ActivityType.AutomotiveNavigation,
-    deferredUpdatesInterval: 60_000,
+    deferredUpdatesInterval: 10_000,
     distanceInterval: 0,
     foregroundService: {
       killServiceOnDestroy: false,
@@ -84,7 +84,7 @@ export async function startDeliveryTracking(session: DeliverySessionResponse) {
     },
     pausesUpdatesAutomatically: false,
     showsBackgroundLocationIndicator: true,
-    timeInterval: 60_000,
+    timeInterval: 10_000,
   });
 }
 

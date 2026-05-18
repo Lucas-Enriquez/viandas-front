@@ -17,7 +17,13 @@
           "locationAlwaysAndWhenInUsePermission": "Caseritas usa tu ubicacion para avisar el estado del reparto mientras esta activo."
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "color": "#DC2626"
+        }
+      ]
     ],
     "splash": {
       "image": "./assets/logo.png",
@@ -27,9 +33,11 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.caseritas.cook",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": [
-          "location"
+          "location",
+          "remote-notification"
         ],
         "NSLocationWhenInUseUsageDescription": "Caseritas usa tu ubicacion para enviar actualizaciones durante el reparto.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Caseritas usa tu ubicacion en segundo plano solo mientras hay un reparto activo."
@@ -37,12 +45,14 @@
     },
     "android": {
       "package": "com.caseritas.cook",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],

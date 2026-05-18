@@ -76,6 +76,24 @@ export default function OrdersScreen() {
     },
   });
 
+  const markMenuPreparingMutation = useMutation({
+    mutationFn: (menuId: string) => ordersApi.markMenuPreparing(menuId),
+    onError: (error) => {
+      toast.show({
+        title: "No pudimos actualizar los pedidos",
+        message: getApiErrorMessage(error),
+        tone: "error",
+      });
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<OrderResponse[]>(["orders", "today"], (current) => {
+        if (!current) return current;
+        const byId = new Map(updated.map((o) => [o.id, o]));
+        return current.map((o) => byId.get(o.id) ?? o);
+      });
+    },
+  });
+
   const startDeliveryMutation = useMutation({
     mutationFn: async ({ companyId, menuId }: { companyId: string; menuId: string }) => {
       const session = await deliveryApi.start({ companyId, menuId });
@@ -186,6 +204,17 @@ export default function OrdersScreen() {
                     title="Iniciar reparto"
                   />
                 </View>
+
+                {batch.orders.some((o) => o.status === "RECEIVED") && (
+                  <Button
+                    icon={ChefHat}
+                    loading={markMenuPreparingMutation.isPending}
+                    onPress={() => markMenuPreparingMutation.mutate(batch.menuId)}
+                    size="small"
+                    title="Marcar todos en preparación"
+                    variant="secondary"
+                  />
+                )}
 
                 {STATUS_GROUPS.map((group) => {
                   const groupOrders = batch.orders.filter(

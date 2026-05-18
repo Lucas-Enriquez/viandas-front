@@ -37,11 +37,15 @@ export function formatTimeLabel(value: string) {
 
 export function formatMenuDate(value: string) {
   const date = ymdToDate(value);
-  return date.toLocaleDateString("es-AR", {
+  const formatted = date.toLocaleDateString("es-AR", {
     day: "2-digit",
     month: "long",
     weekday: "long",
   });
+  return formatted.replace(
+    /(^|de )([a-záéíóúñ])/g,
+    (_, prefix, letter) => prefix + letter.toUpperCase(),
+  );
 }
 
 export function formatRelativeDateTime(value: string) {
