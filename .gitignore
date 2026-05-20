@@ -31,7 +31,14 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Expo dev logs
+.expo-logs/
 
 # typescript
 *.tsbuildinfo
