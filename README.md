@@ -1,6 +1,6 @@
-# Caseritas Cook
+# Viandas Cook
 
-App móvil de Caseritas: gestión de viandas, pedidos y reparto en tiempo real.
+App móvil de Viandas: gestión de viandas, pedidos y reparto en tiempo real.
 
 Pensada para tres tipos de usuario:
 
@@ -77,7 +77,7 @@ Definidas en `.env` (gitignoreado) o exportadas en el shell. Todas usan el prefi
 | Variable | Descripción |
 |----------|-------------|
 | `EXPO_PUBLIC_API_URL` | URL del backend Spring. Defaults: `http://10.0.2.2:8080` (Android emulator), `http://localhost:8080` (iOS simulator), IP local en LAN para device físico. |
-| `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Maps API key. Se usa tanto en el SDK nativo de Android (vía `app.config.js`) como en las llamadas a Geocoding API desde el código. Debe estar restringida a este bundle (`com.caseritas.cook`) y solo a Maps SDK + Geocoding API. |
+| `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Maps API key. Se usa tanto en el SDK nativo de Android (vía `app.config.js`) como en las llamadas a Geocoding API desde el código. Debe estar restringida a este bundle (`com.viandas.cook`) y solo a Maps SDK + Geocoding API. |
 
 Para builds en EAS: configurar las mismas variables como secrets:
 

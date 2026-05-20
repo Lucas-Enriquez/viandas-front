@@ -98,14 +98,14 @@ export default function LoginScreen() {
         <SafeAreaView edges={["top"]}>
           <View style={[styles.heroContent, isKeyboardVisible && styles.heroContentCompact]}>
             <Image
-              accessibilityLabel="Caseritas"
+              accessibilityLabel="Viandas"
               resizeMode="contain"
               source={logoSource}
               style={isKeyboardVisible ? styles.logoCompact : styles.logo}
             />
             {!isKeyboardVisible && (
               <>
-                <Text style={styles.title}>Bienvenido a Caseritas</Text>
+                <Text style={styles.title}>Bienvenido a Viandas</Text>
                 <Text style={styles.subtitle}>
                   Iniciá sesión para gestionar el día.
                 </Text>

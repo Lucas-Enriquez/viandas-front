@@ -4,8 +4,8 @@ import { Platform } from "react-native";
 
 import type { ActiveDeliverySession, AuthSession } from "./types";
 
-const AUTH_STORAGE_KEY = "caseritas.auth";
-const ACTIVE_DELIVERY_KEY = "caseritas.activeDelivery";
+const AUTH_STORAGE_KEY = "viandas.auth";
+const ACTIVE_DELIVERY_KEY = "viandas.activeDelivery";
 
 export async function getAuthSession() {
   const raw = await getSecureItem(AUTH_STORAGE_KEY);

@@ -1,11 +1,11 @@
 module.exports = {
   expo: {
-    name: "Caseritas",
-    slug: "caseritas-cook",
+    name: "Viandas",
+    slug: "viandas-cook",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
-    scheme: "caseritas",
+    scheme: "viandas",
     userInterfaceStyle: "light",
     newArchEnabled: false,
     plugins: [
@@ -15,7 +15,7 @@ module.exports = {
         "expo-location",
         {
           locationAlwaysAndWhenInUsePermission:
-            "Caseritas usa tu ubicacion para avisar el estado del reparto mientras esta activo.",
+            "Viandas usa tu ubicacion para avisar el estado del reparto mientras esta activo.",
         },
       ],
       "@react-native-community/datetimepicker",
@@ -33,18 +33,18 @@ module.exports = {
     },
     ios: {
       supportsTablet: false,
-      bundleIdentifier: "com.caseritas.cook",
+      bundleIdentifier: "com.viandas.cook",
       googleServicesFile: "./GoogleService-Info.plist",
       infoPlist: {
         UIBackgroundModes: ["location", "remote-notification"],
         NSLocationWhenInUseUsageDescription:
-          "Caseritas usa tu ubicacion para enviar actualizaciones durante el reparto.",
+          "Viandas usa tu ubicacion para enviar actualizaciones durante el reparto.",
         NSLocationAlwaysAndWhenInUseUsageDescription:
-          "Caseritas usa tu ubicacion en segundo plano solo mientras hay un reparto activo.",
+          "Viandas usa tu ubicacion en segundo plano solo mientras hay un reparto activo.",
       },
     },
     android: {
-      package: "com.caseritas.cook",
+      package: "com.viandas.cook",
       googleServicesFile: "./google-services.json",
       permissions: [
         "ACCESS_COARSE_LOCATION",

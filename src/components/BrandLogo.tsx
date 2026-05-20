@@ -24,12 +24,12 @@ export function BrandLogo({ size = "compact" }: BrandLogoProps) {
   return (
     <Animated.View style={[styles.wrapper, { opacity, transform: [{ scale }] }]}>
       <Image
-        accessibilityLabel="Logo Caseritas"
+        accessibilityLabel="Logo Viandas"
         resizeMode="contain"
         source={logoSource}
         style={isLarge ? styles.logoLarge : styles.logoCompact}
       />
-      {!isLarge && <Text style={styles.brandText}>Caseritas</Text>}
+      {!isLarge && <Text style={styles.brandText}>Viandas</Text>}
     </Animated.View>
   );
 }

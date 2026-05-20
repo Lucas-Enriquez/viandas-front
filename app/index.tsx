@@ -7,7 +7,7 @@ export default function IndexScreen() {
   const { isLoading, session } = useAuth();
 
   if (isLoading) {
-    return <LoadingState label="Cargando Caseritas..." />;
+    return <LoadingState label="Cargando Viandas..." />;
   }
 
   if (!session) {

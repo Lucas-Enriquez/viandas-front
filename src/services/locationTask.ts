@@ -7,7 +7,7 @@ import { clearActiveDelivery, getActiveDelivery, setActiveDelivery } from "../st
 import { colors } from "../theme";
 import type { DeliverySessionResponse } from "../types";
 
-export const DELIVERY_LOCATION_TASK = "caseritas-delivery-location";
+export const DELIVERY_LOCATION_TASK = "viandas-delivery-location";
 
 type LocationTaskData = {
   locations?: Location.LocationObject[];
@@ -80,7 +80,7 @@ export async function startDeliveryTracking(session: DeliverySessionResponse) {
       killServiceOnDestroy: false,
       notificationBody: "Compartiendo ubicación del reparto activo.",
       notificationColor: colors.brandRed,
-      notificationTitle: "Caseritas: reparto activo",
+      notificationTitle: "Viandas: reparto activo",
     },
     pausesUpdatesAutomatically: false,
     showsBackgroundLocationIndicator: true,
