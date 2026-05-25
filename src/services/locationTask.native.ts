@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 
@@ -13,7 +14,7 @@ type LocationTaskData = {
   locations?: Location.LocationObject[];
 };
 
-if (!TaskManager.isTaskDefined(DELIVERY_LOCATION_TASK)) {
+if (Platform.OS !== "web" && !TaskManager.isTaskDefined(DELIVERY_LOCATION_TASK)) {
   TaskManager.defineTask(DELIVERY_LOCATION_TASK, async ({ data, error }) => {
     if (error) {
       return;

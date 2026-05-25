@@ -32,6 +32,7 @@ import { Hero } from "../../../src/components/Hero";
 import { Skeleton } from "../../../src/components/Skeleton";
 import { EmptyState, ErrorState } from "../../../src/components/StateViews";
 import { StatusPill } from "../../../src/components/StatusPill";
+import { buildInvitationLink } from "../../../src/config";
 import { useToast } from "../../../src/providers/ToastProvider";
 import { mapResultStore } from "../../../src/stores/mapResult";
 import { colors, radius, shadows, spacing, typography } from "../../../src/theme";
@@ -277,7 +278,7 @@ function InviteModal({
   const handleShare = async () => {
     if (!generated) return;
     try {
-      await Share.share({ message: generated.link });
+      await Share.share({ message: buildInvitationLink(generated.token) });
     } catch {
       // user cancelled or error
     }
@@ -317,7 +318,7 @@ function InviteModal({
 
               <View style={styles.linkBox}>
                 <Text selectable style={styles.linkText}>
-                  {generated.link}
+                  {buildInvitationLink(generated.token)}
                 </Text>
               </View>
 

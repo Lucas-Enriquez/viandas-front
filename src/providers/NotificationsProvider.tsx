@@ -38,7 +38,7 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
   roleRef.current = session?.user.role;
 
   useEffect(() => {
-    if (!sessionId) {
+    if (Platform.OS === "web" || !sessionId) {
       return;
     }
     let cancelled = false;
@@ -85,6 +85,9 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
   }, [sessionId]);
 
   useEffect(() => {
+    if (Platform.OS === "web") {
+      return;
+    }
     let mounted = true;
 
     Notifications.getLastNotificationResponseAsync().then((response) => {

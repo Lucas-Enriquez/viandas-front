@@ -13,7 +13,7 @@ import {
 import { Redirect, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react-native";
+import { Eye, EyeOff, LogIn } from "lucide-react-native";
 
 import { useAuth } from "../src/auth/AuthContext";
 import { Button } from "../src/components/Button";
@@ -170,12 +170,6 @@ export default function LoginScreen() {
           >
             <Text style={styles.forgotLinkText}>¿Olvidaste tu contraseña?</Text>
           </Pressable>
-          <Button
-            icon={UserPlus}
-            onPress={() => router.push("/invitation")}
-            title="Aceptar invitación"
-            variant="ghost"
-          />
         </View>
         <Text style={styles.apiUrl}>Backend: {API_URL}</Text>
       </ScrollView>

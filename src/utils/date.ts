@@ -6,7 +6,21 @@ export function todayYmd(date = new Date()) {
 }
 
 export function ymdToDate(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
+  // Si viene como ISO con timezone (ej "2025-05-26T00:00:00Z"), usamos los
+  // componentes UTC para no shiftear el día por la zona horaria del device.
+  if (/T.*(Z|[+-]\d{2}:?\d{2})/.test(value)) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Date(
+        parsed.getUTCFullYear(),
+        parsed.getUTCMonth(),
+        parsed.getUTCDate(),
+      );
+    }
+  }
+  // YMD puro ("2025-05-26") o ISO sin TZ.
+  const ymd = value.slice(0, 10);
+  const [year, month, day] = ymd.split("-").map(Number);
   if (!year || !month || !day) {
     return new Date();
   }
@@ -33,6 +47,13 @@ export function formatTimeLabel(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+export function formatShortDate(value: string) {
+  const ymd = value.slice(0, 10);
+  const [, month, day] = ymd.split("-");
+  if (!month || !day) return value;
+  return `${day}/${month}`;
 }
 
 export function formatMenuDate(value: string) {

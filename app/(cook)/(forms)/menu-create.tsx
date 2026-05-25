@@ -18,10 +18,13 @@ import { menusApi } from "../../../src/api/menus";
 import { productsApi } from "../../../src/api/products";
 import { Button } from "../../../src/components/Button";
 import { Card } from "../../../src/components/Card";
+import { ConfirmModal } from "../../../src/components/ConfirmModal";
+import { DangerConfirmModal } from "../../../src/components/DangerConfirmModal";
 import { DateTimeField } from "../../../src/components/DateTimeField";
 import { Hero } from "../../../src/components/Hero";
 import { Input } from "../../../src/components/Input";
 import { Skeleton } from "../../../src/components/Skeleton";
+import { ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { StatusPill } from "../../../src/components/StatusPill";
 import { useToast } from "../../../src/providers/ToastProvider";
 import { colors, radius, spacing, typography } from "../../../src/theme";
@@ -43,7 +46,7 @@ const CATEGORY_TABS: Array<{ label: string; value: MenuItemCategory | "ALL" }> =
 ];
 
 export default function MenuCreateScreen() {
-  const params = useLocalSearchParams<{ id?: string; scope?: MenuScope }>();
+  const params = useLocalSearchParams<{ id?: string; scope?: MenuScope; date?: string }>();
   const editingId = params.id;
   const isEditing = !!editingId;
   const queryClient = useQueryClient();
@@ -53,9 +56,13 @@ export default function MenuCreateScreen() {
   const [scope, setScope] = useState<MenuScope>(initialScope);
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
   const [itemCompanyIds, setItemCompanyIds] = useState<string[]>([]);
-  const [date, setDate] = useState(() => ymdToDate(todayYmd()));
+  const [date, setDate] = useState(() =>
+    ymdToDate(typeof params.date === "string" ? params.date : todayYmd()),
+  );
   const [orderClosesAt, setOrderClosesAt] = useState(() => timeToDate("11:30:00"));
   const [itemMode, setItemMode] = useState<"CATALOG" | "FREE">("CATALOG");
+  const [showDelete, setShowDelete] = useState(false);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
 
   // Multi-select catalog state
   const [pickedProductIds, setPickedProductIds] = useState<string[]>([]);
@@ -102,7 +109,10 @@ export default function MenuCreateScreen() {
     if (!menu) return;
     setScope(menu.scope);
     setSelectedCompanyIds(menu.companies.map((c) => c.id));
-    setDate(ymdToDate(menu.date));
+    // Preferimos el `date` del query param (viene del LIST endpoint con
+    // formato YMD confiable). Si no, caemos al `menu.date` del GET.
+    const ymdSource = typeof params.date === "string" ? params.date : menu.date;
+    setDate(ymdToDate(ymdSource));
     setOrderClosesAt(timeToDate(menu.orderClosesAt));
   }, [menu]);
 
@@ -142,12 +152,6 @@ export default function MenuCreateScreen() {
       didAutoSelectRef.current = true;
     }
   }, [companies, scope, isEditing]);
-
-  const allSelected =
-    companies.length > 0 && selectedCompanyIds.length === companies.length;
-  const toggleAllCompanies = () => {
-    setSelectedCompanyIds(allSelected ? [] : companies.map((c) => c.id));
-  };
 
   const addItemMutation = useMutation({
     mutationFn: async () => {
@@ -267,12 +271,46 @@ export default function MenuCreateScreen() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingId) throw new Error("Menú no disponible.");
+      return menusApi.delete(editingId);
+    },
+    onError: (error) => {
+      toast.show({
+        title: "No pudimos eliminar el menú",
+        message: getApiErrorMessage(error),
+        tone: "error",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["menus"] });
+      setShowDelete(false);
+      toast.show({ title: "Menú eliminado", tone: "success" });
+      router.back();
+    },
+  });
+
   const isLoadingInitial = companiesQuery.isLoading || (isEditing && menuQuery.isLoading);
 
   const addButtonTitle =
     itemMode === "CATALOG" && pickedProductIds.length > 0
       ? `Agregar ${pickedProductIds.length} al menú`
       : "Agregar al menú";
+
+  if (isEditing && menuQuery.isLoading) {
+    return <LoadingState label="Cargando menú..." />;
+  }
+  if (isEditing && menuQuery.isError) {
+    return (
+      <ErrorState
+        actionLabel="Reintentar"
+        message={getApiErrorMessage(menuQuery.error)}
+        onAction={() => menuQuery.refetch()}
+        title="No pudimos cargar el menú"
+      />
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -351,34 +389,36 @@ export default function MenuCreateScreen() {
                 <>
                   <View style={styles.labelRow}>
                     <Text style={styles.label}>
-                      {scope === "COMPANY" ? "Empresa" : "Empresas incluidas"}
+                      {scope === "COMPANY"
+                        ? "Empresa"
+                        : `Empresas incluidas (${companies.length})`}
                     </Text>
-                    {scope === "GLOBAL" && companies.length > 0 && (
-                      <Pressable hitSlop={8} onPress={toggleAllCompanies}>
-                        <Text style={styles.toggleAll}>
-                          {allSelected ? "Quitar todas" : "Seleccionar todas"}
-                        </Text>
-                      </Pressable>
-                    )}
                   </View>
-                  <View style={styles.choiceList}>
+                  <ScrollView
+                    contentContainerStyle={styles.choiceList}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                    style={styles.choiceListScroll}
+                  >
                     {companies.map((company) => (
                       <CompanyChoice
                         company={company}
                         key={company.id}
                         multiple={scope === "GLOBAL"}
-                        onPress={() => {
-                          if (scope === "COMPANY") {
-                            setSelectedCompanyIds([company.id]);
-                            setItemCompanyIds([]);
-                            return;
-                          }
-                          setSelectedCompanyIds((current) => toggleValue(current, company.id));
-                        }}
-                        selected={selectedCompanyIds.includes(company.id)}
+                        onPress={
+                          scope === "GLOBAL"
+                            ? undefined
+                            : () => {
+                                setSelectedCompanyIds([company.id]);
+                                setItemCompanyIds([]);
+                              }
+                        }
+                        selected={
+                          scope === "GLOBAL" || selectedCompanyIds.includes(company.id)
+                        }
                       />
                     ))}
-                  </View>
+                  </ScrollView>
                 </>
               )}
 
@@ -602,6 +642,11 @@ export default function MenuCreateScreen() {
                 )}
 
                 <Button
+                  disabled={
+                    itemMode === "CATALOG"
+                      ? pickedProductIds.length === 0
+                      : !itemName.trim()
+                  }
                   icon={Plus}
                   loading={addItemMutation.isPending}
                   onPress={() => addItemMutation.mutate()}
@@ -615,7 +660,7 @@ export default function MenuCreateScreen() {
               <Button
                 icon={Send}
                 loading={publishMutation.isPending}
-                onPress={() => publishMutation.mutate()}
+                onPress={() => setShowPublishConfirm(true)}
                 title="Publicar menú"
               />
             ) : !isEditing ? (
@@ -626,26 +671,69 @@ export default function MenuCreateScreen() {
                 title="Crear menú"
               />
             ) : null}
+
+            {isEditing && (
+              <Card style={styles.dangerCard}>
+                <View style={styles.sectionHeader}>
+                  <Trash2 color={colors.brandRed} size={22} strokeWidth={1.8} />
+                  <Text style={styles.sectionTitle}>Zona peligrosa</Text>
+                </View>
+                <Text style={styles.help}>
+                  Eliminar este menú es permanente y borra todos sus ítems y pedidos asociados.
+                </Text>
+                <Button
+                  icon={Trash2}
+                  onPress={() => setShowDelete(true)}
+                  title="Eliminar menú"
+                  variant="danger"
+                />
+              </Card>
+            )}
           </>
         )}
       </ScrollView>
+
+      <DangerConfirmModal
+        bullets={["Items del menú", "Pedidos asociados"]}
+        description="Esta acción es permanente. Se va a borrar el menú y todo lo que contiene."
+        destructiveLabel="Eliminar menú"
+        loading={deleteMutation.isPending}
+        onCancel={() => setShowDelete(false)}
+        onConfirm={() => deleteMutation.mutate()}
+        title="¿Eliminar este menú?"
+        visible={showDelete}
+      />
+
+      <ConfirmModal
+        confirmLabel="Publicar menú"
+        description="Los empleados van a ver el menú y podrán pedir hasta el horario de cierre. Después de publicar no podrás eliminar items del menú."
+        icon={Send}
+        loading={publishMutation.isPending}
+        onCancel={() => setShowPublishConfirm(false)}
+        onConfirm={() => {
+          setShowPublishConfirm(false);
+          publishMutation.mutate();
+        }}
+        title="¿Publicar este menú?"
+        visible={showPublishConfirm}
+      />
     </View>
   );
 }
 
 function CompanyChoice({
   company,
-  multiple,
+  multiple: _multiple,
   onPress,
   selected,
 }: {
   company: Company;
   multiple: boolean;
-  onPress: () => void;
+  onPress?: () => void;
   selected: boolean;
 }) {
-  return (
-    <Pressable onPress={onPress} style={[styles.choice, selected && styles.choiceSelected]}>
+  const inner = (
+    <>
       <View style={styles.choiceTextBlock}>
         <Text style={[styles.choiceTitle, selected && styles.choiceTitleSelected]}>
           {company.name}
@@ -653,6 +741,18 @@ function CompanyChoice({
         {!!company.address && <Text style={styles.choiceMeta}>{company.address}</Text>}
       </View>
       {selected && <Check color={colors.brandRed} size={19} strokeWidth={1.8} />}
+    </>
+  );
+
+  if (!onPress) {
+    return (
+      <View style={[styles.choice, selected && styles.choiceSelected]}>{inner}</View>
+    );
+  }
+
+  return (
+    <Pressable onPress={onPress} style={[styles.choice, selected && styles.choiceSelected]}>
+      {inner}
     </Pressable>
   );
 }
@@ -846,6 +946,9 @@ const styles = StyleSheet.create({
   choiceList: {
     gap: spacing.sm,
   },
+  choiceListScroll: {
+    maxHeight: 280,
+  },
   choiceMeta: {
     ...typography.caption,
     color: colors.muted,
@@ -953,6 +1056,11 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.muted,
   },
+  dangerCard: {
+    borderColor: colors.redBorder,
+    borderWidth: 1,
+    gap: spacing.md,
+  },
   itemBody: {
     flex: 1,
   },
@@ -994,10 +1102,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-  },
-  toggleAll: {
-    ...typography.captionStrong,
-    color: colors.brandRed,
   },
   section: {
     gap: spacing.md,

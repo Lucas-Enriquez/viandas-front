@@ -5,6 +5,7 @@ import { CheckCircle2, MessageCircle, Send } from "lucide-react-native";
 
 import { getApiErrorMessage } from "../../../src/api/client";
 import { menusApi } from "../../../src/api/menus";
+import { rewriteShareMessage } from "../../../src/config";
 import { Button } from "../../../src/components/Button";
 import { Card } from "../../../src/components/Card";
 import { Hero } from "../../../src/components/Hero";
@@ -49,7 +50,7 @@ export default function MenuShareScreen() {
 
   const isLoading = menuQuery.isLoading || shareQuery.isLoading;
   const menu = menuQuery.data;
-  const share = shareQuery.data;
+  const share = shareQuery.data ? rewriteShareMessage(shareQuery.data) : undefined;
   const message = share?.whatsappText || share?.publicUrl || "";
 
   const shareWith = async (companyName?: string) => {

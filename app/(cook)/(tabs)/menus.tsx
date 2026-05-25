@@ -15,6 +15,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import {
+  CalendarClock,
   Clock,
   Copy,
   Globe2,
@@ -30,6 +31,7 @@ import {
 
 import { getApiErrorMessage } from "../../../src/api/client";
 import { menusApi } from "../../../src/api/menus";
+import { rewriteShareMessage } from "../../../src/config";
 import { useAuth } from "../../../src/auth/AuthContext";
 import { Button } from "../../../src/components/Button";
 import { Card } from "../../../src/components/Card";
@@ -42,7 +44,7 @@ import { useToast } from "../../../src/providers/ToastProvider";
 import { usePressAnimation } from "../../../src/hooks/usePressAnimation";
 import { colors, radius, shadows, spacing, typography } from "../../../src/theme";
 import type { MenuResponse } from "../../../src/types";
-import { formatMenuDate, todayYmd } from "../../../src/utils/date";
+import { formatMenuDate, formatShortDate, todayYmd } from "../../../src/utils/date";
 import { formatMoney } from "../../../src/utils/format";
 
 export default function MenusScreen() {
@@ -53,10 +55,17 @@ export default function MenusScreen() {
   const firstName = session?.user.name?.split(" ")[0] ?? "Cocina";
   const [deletingMenuId, setDeletingMenuId] = useState<string | null>(null);
 
-  const menusQuery = useQuery({
-    queryFn: () => menusApi.list({ date }),
-    queryKey: ["menus", date],
+  const allMenusQuery = useQuery({
+    queryFn: () => menusApi.list(),
+    queryKey: ["menus", "all"],
   });
+
+  const allMenus = dedupeMenusByScopeAndId(allMenusQuery.data ?? []);
+  const todayMenus = allMenus.filter((m) => m.date === date);
+  const upcomingMenus = allMenus
+    .filter((m) => m.date > date)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const latestMenu = allMenus[0];
 
   const publishMutation = useMutation({
     mutationFn: menusApi.publish,
@@ -67,8 +76,9 @@ export default function MenusScreen() {
         tone: "error",
       });
     },
-    onSuccess: async (share) => {
+    onSuccess: async (raw) => {
       queryClient.invalidateQueries({ queryKey: ["menus"] });
+      const share = rewriteShareMessage(raw);
       await shareMenu(share.whatsappText || share.publicUrl);
     },
   });
@@ -82,18 +92,18 @@ export default function MenusScreen() {
         tone: "error",
       });
     },
-    onSuccess: async (share) => {
+    onSuccess: async (raw) => {
+      const share = rewriteShareMessage(raw);
       await shareMenu(share.whatsappText || share.publicUrl);
     },
   });
 
   const cloneMutation = useMutation({
     mutationFn: async () => {
-      const yesterday = todayYmd(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      const list = await menusApi.list({ date: yesterday });
-      const sourceMenu = list.find((m) => m.scope === "GLOBAL");
+      const list = allMenusQuery.data ?? (await menusApi.list());
+      const sourceMenu = list[0];
       if (!sourceMenu) {
-        throw new Error("No hay menú global de ayer para clonar.");
+        throw new Error("No hay menús anteriores para clonar.");
       }
       return menusApi.clone(sourceMenu.id, { date });
     },
@@ -126,22 +136,26 @@ export default function MenusScreen() {
     },
   });
 
-  if (menusQuery.isError) {
+  if (allMenusQuery.isError) {
     return (
       <ErrorState
         actionLabel="Reintentar"
         icon={RefreshCw}
-        message={getApiErrorMessage(menusQuery.error)}
-        onAction={() => menusQuery.refetch()}
+        message={getApiErrorMessage(allMenusQuery.error)}
+        onAction={() => allMenusQuery.refetch()}
         title="No pudimos cargar los menús"
       />
     );
   }
 
-  const menus = dedupeMenusByScopeAndId(menusQuery.data ?? []);
-
-  const totalItems = menus.reduce((sum, m) => sum + m.items.length, 0);
-  const publishedCount = menus.filter((m) => m.status === "PUBLISHED").length;
+  const publishedCount = todayMenus.filter((m) => m.status === "PUBLISHED").length;
+  const heroSubtitle = allMenusQuery.isLoading
+    ? undefined
+    : todayMenus.length === 0
+    ? upcomingMenus.length > 0
+      ? `Sin menús hoy · ${upcomingMenus.length} próximo${upcomingMenus.length === 1 ? "" : "s"}`
+      : "Sin menús para hoy todavía"
+    : `${todayMenus.length} ${todayMenus.length === 1 ? "menú" : "menús"} · ${publishedCount} publicado${publishedCount !== 1 ? "s" : ""}`;
 
   return (
     <View style={styles.root}>
@@ -149,13 +163,7 @@ export default function MenusScreen() {
         tone="ink"
         eyebrow={formatMenuDate(date)}
         title={`Buen día, ${firstName}`}
-        subtitle={
-          menusQuery.isLoading
-            ? undefined
-            : menus.length === 0
-            ? "Sin menús para hoy todavía"
-            : `${menus.length} ${menus.length === 1 ? "menú" : "menús"} · ${publishedCount} publicado${publishedCount !== 1 ? "s" : ""}`
-        }
+        subtitle={heroSubtitle}
         rightAccessory={
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{firstName[0]?.toUpperCase() ?? "C"}</Text>
@@ -168,8 +176,8 @@ export default function MenusScreen() {
         refreshControl={
           <RefreshControl
             colors={[colors.brandRed]}
-            onRefresh={() => menusQuery.refetch()}
-            refreshing={menusQuery.isFetching && !menusQuery.isLoading}
+            onRefresh={() => allMenusQuery.refetch()}
+            refreshing={allMenusQuery.isFetching && !allMenusQuery.isLoading}
             tintColor={colors.brandRed}
           />
         }
@@ -183,26 +191,32 @@ export default function MenusScreen() {
             title="Crear menú"
           />
           <ActionTile
-            disabled={cloneMutation.isPending}
+            disabled={cloneMutation.isPending || (!latestMenu && !allMenusQuery.isLoading)}
             icon={Copy}
             onPress={() => cloneMutation.mutate()}
-            subtitle="Igual que ayer"
+            subtitle={
+              allMenusQuery.isLoading
+                ? "Buscando último..."
+                : latestMenu
+                ? `Último — ${formatShortDate(latestMenu.date)}`
+                : "Sin menús previos"
+            }
             title="Clonar"
           />
         </View>
 
         <View style={styles.todayHeader}>
           <Text style={styles.todayLabel}>Hoy</Text>
-          <Text style={styles.todayHint}>{menus.length} resultado{menus.length === 1 ? "" : "s"}</Text>
+          <Text style={styles.todayHint}>{todayMenus.length} resultado{todayMenus.length === 1 ? "" : "s"}</Text>
         </View>
 
-        {menusQuery.isLoading ? (
+        {allMenusQuery.isLoading ? (
           <View style={styles.list}>
             <Skeleton.Card height={140} />
             <Skeleton.Card height={140} />
             <Skeleton.Card height={140} />
           </View>
-        ) : menus.length === 0 ? (
+        ) : todayMenus.length === 0 ? (
           <EmptyState
             icon={Utensils}
             message="No creaste ningún menú para hoy todavía."
@@ -210,18 +224,48 @@ export default function MenusScreen() {
           />
         ) : (
           <View style={styles.list}>
-            {menus.map((menu) => (
+            {todayMenus.map((menu) => (
               <MenuCard
                 key={`${menu.scope}-${menu.id}`}
                 menu={menu}
                 onDelete={() => setDeletingMenuId(menu.id)}
-                onEdit={() => router.push({ pathname: "/menu-create", params: { id: menu.id } })}
+                onEdit={() =>
+                  router.push({
+                    pathname: "/menu-create",
+                    params: { id: menu.id, date: menu.date.slice(0, 10) },
+                  })
+                }
                 onPublish={() => publishMutation.mutate(menu.id)}
                 onShare={() => shareMutation.mutate(menu.id)}
                 publishing={publishMutation.isPending}
               />
             ))}
           </View>
+        )}
+
+        {upcomingMenus.length > 0 && (
+          <>
+            <View style={styles.todayHeader}>
+              <Text style={styles.todayLabel}>Próximos</Text>
+              <Text style={styles.todayHint}>
+                {upcomingMenus.length} {upcomingMenus.length === 1 ? "menú" : "menús"}
+              </Text>
+            </View>
+            <View style={styles.upcomingList}>
+              {upcomingMenus.map((menu) => (
+                <UpcomingMenuRow
+                  key={`${menu.scope}-${menu.id}`}
+                  menu={menu}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/menu-create",
+                      params: { id: menu.id, date: menu.date.slice(0, 10) },
+                    })
+                  }
+                />
+              ))}
+            </View>
+          </>
         )}
       </ScrollView>
 
@@ -382,6 +426,49 @@ function MenuCard({
   );
 }
 
+function UpcomingMenuRow({
+  menu,
+  onPress,
+}: {
+  menu: MenuResponse;
+  onPress: () => void;
+}) {
+  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation(0.97);
+  const companyLabel =
+    menu.scope === "GLOBAL"
+      ? "Global"
+      : menu.companyName ?? "Empresa sin nombre";
+  const itemsLabel = `${menu.items.length} ${menu.items.length === 1 ? "ítem" : "ítems"}`;
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={styles.upcomingRow}
+      >
+        <View style={styles.upcomingDateChip}>
+          <CalendarClock color={colors.brandRed} size={16} strokeWidth={1.8} />
+          <Text style={styles.upcomingDateText}>{formatShortDate(menu.date)}</Text>
+        </View>
+        <View style={styles.upcomingCopy}>
+          <Text numberOfLines={1} style={styles.upcomingTitle}>
+            {companyLabel}
+          </Text>
+          <Text numberOfLines={1} style={styles.upcomingMeta}>
+            {itemsLabel} · Cierra {menu.orderClosesAt}
+          </Text>
+        </View>
+        <StatusPill
+          label={menu.status === "PUBLISHED" ? "Publicado" : "Borrador"}
+          tone={menu.status === "PUBLISHED" ? "success" : "warning"}
+        />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 function dedupeMenusByScopeAndId(menus: MenuResponse[]) {
   const seen = new Set<string>();
   return menus.filter((menu) => {
@@ -494,6 +581,46 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: spacing.md,
+  },
+  upcomingList: {
+    gap: spacing.sm,
+  },
+  upcomingRow: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    ...shadows.sm,
+  },
+  upcomingDateChip: {
+    alignItems: "center",
+    backgroundColor: colors.redSoft,
+    borderRadius: radius.sm,
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  upcomingDateText: {
+    ...typography.captionStrong,
+    color: colors.brandRed,
+  },
+  upcomingCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  upcomingTitle: {
+    ...typography.bodyStrong,
+    color: colors.ink,
+  },
+  upcomingMeta: {
+    ...typography.caption,
+    color: colors.muted,
   },
   card: {
     gap: spacing.md,

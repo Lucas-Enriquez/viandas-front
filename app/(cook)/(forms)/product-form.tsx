@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { Camera, ChefHat, Save, Trash2, X } from "lucide-react-native";
@@ -12,6 +12,7 @@ import { DangerConfirmModal } from "../../../src/components/DangerConfirmModal";
 import { Hero } from "../../../src/components/Hero";
 import { Input } from "../../../src/components/Input";
 import { Skeleton } from "../../../src/components/Skeleton";
+import { ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { useToast } from "../../../src/providers/ToastProvider";
 import { colors, radius, shadows, spacing, typography } from "../../../src/theme";
 import type { MenuItemCategory, ProductRequest } from "../../../src/types";
@@ -68,23 +69,38 @@ export default function ProductFormScreen() {
       return;
     }
 
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        toast.show({
+          title: "Permiso denegado",
+          message: "Necesitamos acceso a tu galería para subir una foto.",
+          tone: "error",
+        });
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+      if (!result.canceled) {
+        setLocalPhotoUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // expo-keep-awake a veces falla al activarse durante el picker;
+      // es benigno y no debería abortar el flujo.
+      if (/keep\s*awake/i.test(message)) {
+        console.warn("[pickImage] keep-awake warning ignored:", message);
+        return;
+      }
       toast.show({
-        title: "Permiso denegado",
-        message: "Necesitamos acceso a tu galería para subir una foto.",
+        title: "No pudimos abrir la galería",
+        message,
         tone: "error",
       });
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    });
-    if (!result.canceled) {
-      setLocalPhotoUri(result.assets[0].uri);
     }
   }
 
@@ -151,8 +167,26 @@ export default function ProductFormScreen() {
   const isLoadingInitial = isEditing && productQuery.isLoading;
   const previewUri = localPhotoUri ?? existingPhotoUrl;
 
+  if (isEditing && productQuery.isLoading) {
+    return <LoadingState label="Cargando producto..." />;
+  }
+  if (isEditing && productQuery.isError) {
+    return (
+      <ErrorState
+        actionLabel="Reintentar"
+        message={getApiErrorMessage(productQuery.error)}
+        onAction={() => productQuery.refetch()}
+        title="No pudimos cargar el producto"
+      />
+    );
+  }
+
   return (
-    <View style={styles.root}>
+    <KeyboardAvoidingView
+      behavior={Platform.select({ ios: "padding", android: "height" })}
+      keyboardVerticalOffset={Platform.select({ ios: 8, android: 0 })}
+      style={styles.root}
+    >
       <Hero
         compact
         tone="ink"
@@ -163,6 +197,7 @@ export default function ProductFormScreen() {
       />
 
       <ScrollView
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -299,7 +334,7 @@ export default function ProductFormScreen() {
         title={`Eliminar ${name || "producto"}`}
         visible={showDelete}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

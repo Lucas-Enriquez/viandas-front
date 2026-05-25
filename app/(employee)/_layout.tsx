@@ -3,6 +3,7 @@ import { Redirect, Tabs } from "expo-router";
 import { ClipboardCheck, UserRound, Utensils } from "lucide-react-native";
 
 import { useAuth } from "../../src/auth/AuthContext";
+import { DownloadAppBanner } from "../../src/components/DownloadAppBanner";
 import { FloatingTabBar, FLOATING_BAR_BOTTOM_OFFSET } from "../../src/components/FloatingTabBar";
 import { LoadingState } from "../../src/components/StateViews";
 import { colors } from "../../src/theme";
@@ -24,6 +25,7 @@ export default function EmployeeLayout() {
 
   return (
     <View style={{ flex: 1 }}>
+    <DownloadAppBanner />
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{

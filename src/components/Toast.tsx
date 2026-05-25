@@ -37,7 +37,7 @@ const TONE_CONFIG = {
 } as const;
 
 export function Toast({ id, title, message, tone, onDismiss }: ToastProps) {
-  const translateY = useRef(new Animated.Value(-80)).current;
+  const translateY = useRef(new Animated.Value(80)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export function ToastStack({
 }) {
   if (toasts.length === 0) return null;
   return (
-    <SafeAreaView edges={["top"]} pointerEvents="box-none" style={styles.stack}>
+    <SafeAreaView edges={["bottom"]} pointerEvents="box-none" style={styles.stack}>
       <View pointerEvents="box-none" style={styles.stackInner}>
         {toasts.map((toast) => (
           <Toast key={toast.id} {...toast} onDismiss={onDismiss} />
@@ -103,16 +103,16 @@ export function ToastStack({
 
 const styles = StyleSheet.create({
   stack: {
+    bottom: 0,
     left: 0,
     position: "absolute",
     right: 0,
-    top: 0,
     zIndex: 1000,
   },
   stackInner: {
     gap: spacing.xs,
+    paddingBottom: spacing.xs,
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
   },
   wrapper: {
     alignItems: "flex-start",

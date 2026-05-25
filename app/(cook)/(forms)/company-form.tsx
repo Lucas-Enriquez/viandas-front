@@ -20,7 +20,9 @@ import { DangerConfirmModal } from "../../../src/components/DangerConfirmModal";
 import { Hero } from "../../../src/components/Hero";
 import { Input } from "../../../src/components/Input";
 import { Skeleton } from "../../../src/components/Skeleton";
+import { ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { useToast } from "../../../src/providers/ToastProvider";
+import { buildInvitationLink } from "../../../src/config";
 import { mapResultStore } from "../../../src/stores/mapResult";
 import { colors, radius, spacing, typography } from "../../../src/theme";
 import type { CompanyRequest, GlobalInvitationResponse } from "../../../src/types";
@@ -178,6 +180,20 @@ export default function CompanyFormScreen() {
   const invitation = invitationQuery.data;
   const isLoadingInitial = isEditing && companyQuery.isLoading;
 
+  if (isEditing && companyQuery.isLoading) {
+    return <LoadingState label="Cargando empresa..." />;
+  }
+  if (isEditing && companyQuery.isError) {
+    return (
+      <ErrorState
+        actionLabel="Reintentar"
+        message={getApiErrorMessage(companyQuery.error)}
+        onAction={() => companyQuery.refetch()}
+        title="No pudimos cargar la empresa"
+      />
+    );
+  }
+
   const shareLink = async (link: string) => {
     try {
       await Share.share({ message: link });
@@ -266,11 +282,11 @@ export default function CompanyFormScreen() {
                 Guardá este link, no se vuelve a mostrar.
               </Text>
               <Text selectable style={styles.generatedLink}>
-                {generated.link}
+                {buildInvitationLink(generated.token)}
               </Text>
               <Button
                 icon={Send}
-                onPress={() => shareLink(generated.link)}
+                onPress={() => shareLink(buildInvitationLink(generated.token))}
                 size="small"
                 title="Compartir link"
               />
